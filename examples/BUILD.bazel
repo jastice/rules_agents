@@ -22,4 +22,20 @@ launcher_binary(
     subcommand = "install",
 )
 
-exports_files(["fake_codex.sh"])
+agent_profile(
+    name = "claude_profile",
+    agent = "claude_code",
+    skills = [":repo_helper"],
+    credential_env = ["ANTHROPIC_API_KEY"],
+)
+
+launcher_binary(
+    name = "claude_profile_install",
+    manifest = ":claude_profile_manifest",
+    subcommand = "install",
+)
+
+exports_files([
+    "fake_claude.sh",
+    "fake_codex.sh",
+])

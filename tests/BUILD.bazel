@@ -16,9 +16,12 @@ sh_test(
     srcs = ["install_start_test.sh"],
     size = "small",
     data = [
+        "//examples:claude_profile",
+        "//examples:claude_profile_install",
         "//examples:dev_profile_doctor",
         "//examples:dev_profile_install",
         "//examples:dev_profile",
+        "//examples:fake_claude.sh",
         "//examples:fake_codex.sh",
     ],
 )
