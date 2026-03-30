@@ -166,8 +166,9 @@ Current state:
 - bootstrap `dev` and `dev_doctor` targets exist in `agent/`
 - `agent_skill` is implemented and packages local skills as tree artifacts
 - profile manifest generation is implemented with deterministic `skill_id` and `managed_dir_name` entries
-- the runtime launcher supports manifest loading, workspace resolution, binary resolution, credential checks, and `doctor`
-- remote skill resolution, installation, and real agent launch behavior are not implemented yet
+- the runtime launcher supports manifest loading, workspace resolution, binary resolution, credential checks, `doctor`, `install`, and `start`
+- Bazel integration tests cover `doctor`, `install`, stale cleanup, unmanaged conflicts, and `start` with a fake binary
+- remote skill resolution is not implemented yet
 
 Today the bootstrap commands validate repository wiring and print scaffold status. They do
 not yet package skills, write managed install directories, or launch real agent binaries.
@@ -178,6 +179,7 @@ not yet package skills, write managed install directories, or launch real agent 
 - `BUILD.bazel`: top-level Bazel package
 - `agent/`: current bootstrap scripts and Bazel targets
 - `examples/`: minimal local skill and profile targets
+- `tests/`: Bazel integration tests for the launcher flow
 - `rules_agents/`: public Starlark surface
 - `rules_agents/private/`: internal implementation
 - `rules_agents/runtime/`: runtime launcher implementation

@@ -4,12 +4,17 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import os
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 
+TOOL_VERSION = "0.1.0"
+OWNER_MARKER_NAME = ".bazel_agent_env_owner.json"
+CLEANUP_MANIFEST_PREFIX = ".bazel_agent_env_"
 
 WORKSPACE_MARKERS = (
     "MODULE.bazel",
@@ -136,6 +141,224 @@ def validate_skill_bundles(manifest: dict) -> list[tuple[str, Path]]:
     return failures
 
 
+def native_skill_root(workspace_root: Path, manifest: dict) -> Path:
+    agent = manifest["agent"]
+    adapter = AGENT_ADAPTERS.get(agent)
+    if adapter is None:
+        fail(f"unsupported agent {agent!r}")
+    return workspace_root / adapter["project_skill_root"]
+
+
+def cleanup_manifest_path(skill_root: Path, profile_name: str) -> Path:
+    return skill_root / f"{CLEANUP_MANIFEST_PREFIX}{profile_name}.json"
+
+
+def owner_marker_contents(manifest: dict, managed_dir_name: str) -> dict:
+    return {
+        "agent": manifest["agent"],
+        "managed_dir_name": managed_dir_name,
+        "profile_name": manifest["profile_name"],
+        "tool": "rules_agents",
+        "tool_version": TOOL_VERSION,
+    }
+
+
+def read_json_file(path: Path) -> dict | None:
+    if not path.is_file():
+        return None
+    with open(path, "r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def write_json_file(path: Path, payload: dict) -> None:
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def read_cleanup_manifest(path: Path) -> dict | None:
+    try:
+        return read_json_file(path)
+    except json.JSONDecodeError as exc:
+        fail(f"invalid cleanup manifest at {path}: {exc}")
+
+
+def read_owner_marker(path: Path) -> dict | None:
+    try:
+        return read_json_file(path / OWNER_MARKER_NAME)
+    except json.JSONDecodeError as exc:
+        fail(f"invalid ownership marker at {path / OWNER_MARKER_NAME}: {exc}")
+
+
+def marker_matches(manifest: dict, managed_dir_name: str, marker: dict | None) -> bool:
+    if marker is None:
+        return False
+    return (
+        marker.get("tool") == "rules_agents"
+        and marker.get("agent") == manifest["agent"]
+        and marker.get("profile_name") == manifest["profile_name"]
+        and marker.get("managed_dir_name") == managed_dir_name
+    )
+
+
+def is_owned_destination(manifest: dict, previous_cleanup: dict | None, path: Path) -> bool:
+    managed_dir_name = path.name
+    if previous_cleanup is None:
+        return False
+    if previous_cleanup.get("agent") != manifest["agent"]:
+        return False
+    if previous_cleanup.get("profile_name") != manifest["profile_name"]:
+        return False
+    installed = previous_cleanup.get("installed_managed_dirs", [])
+    if managed_dir_name not in installed:
+        return False
+    return marker_matches(manifest, managed_dir_name, read_owner_marker(path))
+
+
+def write_owner_marker(path: Path, manifest: dict, managed_dir_name: str) -> None:
+    write_json_file(path / OWNER_MARKER_NAME, owner_marker_contents(manifest, managed_dir_name))
+
+
+def stage_skill_bundle(skill_root: Path, manifest: dict, skill: dict) -> Path:
+    bundle_dir = resolve_bundle_root(skill["bundle_runfiles_path"])
+    if bundle_dir is None:
+        fail(f"unable to resolve bundle for skill {skill['skill_id']}")
+    temp_dir = Path(
+        tempfile.mkdtemp(prefix=f".{skill['managed_dir_name']}.", dir=str(skill_root))
+    )
+    shutil.copytree(bundle_dir, temp_dir / "bundle", dirs_exist_ok=True)
+    staged_dir = temp_dir / "bundle"
+    for root, dirs, files in os.walk(staged_dir):
+        os.chmod(root, 0o755)
+        for name in dirs:
+            os.chmod(Path(root) / name, 0o755)
+        for name in files:
+            os.chmod(Path(root) / name, 0o644)
+    write_owner_marker(staged_dir, manifest, skill["managed_dir_name"])
+    return staged_dir
+
+
+def replace_owned_destination(temp_dir: Path, destination: Path) -> None:
+    backup = destination.parent / f".{destination.name}.old"
+    if backup.exists():
+        shutil.rmtree(backup)
+    os.replace(destination, backup)
+    try:
+        os.replace(temp_dir, destination)
+    except Exception:
+        os.replace(backup, destination)
+        raise
+    shutil.rmtree(backup)
+
+
+def install_declared_skills(workspace_root: Path, manifest: dict) -> list[str]:
+    skill_root = native_skill_root(workspace_root, manifest)
+    skill_root.mkdir(parents=True, exist_ok=True)
+    cleanup_path = cleanup_manifest_path(skill_root, manifest["profile_name"])
+    previous_cleanup = read_cleanup_manifest(cleanup_path)
+    installed_managed_dirs: list[str] = []
+
+    for skill in manifest.get("skills", []):
+        managed_dir_name = skill["managed_dir_name"]
+        destination = skill_root / managed_dir_name
+        staged_dir = stage_skill_bundle(skill_root, manifest, skill)
+        installed_managed_dirs.append(managed_dir_name)
+        staged_parent = staged_dir.parent
+        try:
+            if destination.exists():
+                if not is_owned_destination(manifest, previous_cleanup, destination):
+                    fail(f"refusing to overwrite unmanaged directory {destination}")
+                replace_owned_destination(staged_dir, destination)
+            else:
+                os.replace(staged_dir, destination)
+        finally:
+            if staged_parent.exists():
+                shutil.rmtree(staged_parent)
+
+    stale_dirs = []
+    if previous_cleanup is not None:
+        for managed_dir_name in previous_cleanup.get("installed_managed_dirs", []):
+            if managed_dir_name not in installed_managed_dirs:
+                candidate = skill_root / managed_dir_name
+                if candidate.exists() and is_owned_destination(manifest, previous_cleanup, candidate):
+                    shutil.rmtree(candidate)
+                    stale_dirs.append(managed_dir_name)
+
+    cleanup_payload = {
+        "agent": manifest["agent"],
+        "installed_managed_dirs": installed_managed_dirs,
+        "install_timestamp": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "profile_name": manifest["profile_name"],
+        "tool_version": TOOL_VERSION,
+    }
+    write_json_file(cleanup_path, cleanup_payload)
+    return stale_dirs
+
+
+def run_install(manifest: dict) -> int:
+    workspace_root = resolve_workspace_root()
+    return perform_install(manifest, workspace_root, verbose=True)
+
+
+def perform_install(manifest: dict, workspace_root: Path, verbose: bool) -> int:
+    missing_credentials = validate_credentials(manifest)
+    if missing_credentials:
+        print("rules_agents install", file=sys.stderr)
+        for env_name in missing_credentials:
+            print(f"missing credential: {env_name}", file=sys.stderr)
+        return 1
+
+    bundle_failures = validate_skill_bundles(manifest)
+    if bundle_failures:
+        print("rules_agents install", file=sys.stderr)
+        for skill_id, bundle_path in bundle_failures:
+            print(f"invalid skill bundle: {skill_id} at {bundle_path}", file=sys.stderr)
+        return 1
+
+    skill_root = native_skill_root(workspace_root, manifest)
+    removed = install_declared_skills(workspace_root, manifest)
+
+    if verbose:
+        print("rules_agents install")
+        print(f"profile: {manifest['profile_name']}")
+        print(f"agent: {manifest['agent']}")
+        print(f"native_skill_root: {skill_root}")
+        print("installed:")
+        for skill in manifest.get("skills", []):
+            print(f"  - {skill['managed_dir_name']}")
+        if removed:
+            print("removed_stale:")
+            for managed_dir_name in removed:
+                print(f"  - {managed_dir_name}")
+
+    return 0
+
+
+def normalized_extra_args(values: list[str]) -> list[str]:
+    if values and values[0] == "--":
+        return values[1:]
+    return values
+
+
+def run_start(manifest: dict, extra_args: list[str]) -> int:
+    workspace_root = resolve_workspace_root()
+    binary, binary_detail = resolve_agent_binary(manifest["agent"])
+    if binary is None:
+        print("rules_agents start", file=sys.stderr)
+        print(f"missing agent binary: {binary_detail}", file=sys.stderr)
+        return 1
+
+    install_status = perform_install(manifest, workspace_root, verbose=False)
+    if install_status != 0:
+        return install_status
+
+    os.chdir(workspace_root)
+    child_argv = [binary] + normalized_extra_args(extra_args)
+    child_env = os.environ.copy()
+    os.execvpe(binary, child_argv, child_env)
+    return 1
+
+
 def print_doctor(manifest: dict) -> int:
     agent = manifest["agent"]
     adapter = AGENT_ADAPTERS.get(agent)
@@ -195,6 +418,10 @@ def main() -> int:
 
     if args.command == "doctor":
         return print_doctor(manifest)
+    if args.command == "install":
+        return run_install(manifest)
+    if args.command == "start":
+        return run_start(manifest, args.extra_args)
 
     fail(f"{args.command} is not implemented yet")
     return 1

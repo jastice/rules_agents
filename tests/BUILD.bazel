@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+load(":test_rules.bzl", "sh_test")
+
+sh_test(
+    name = "doctor_test",
+    srcs = ["doctor_test.sh"],
+    size = "small",
+    data = [
+        "//examples:dev_profile_doctor",
+    ],
+)
+
+sh_test(
+    name = "install_start_test",
+    srcs = ["install_start_test.sh"],
+    size = "small",
+    data = [
+        "//examples:dev_profile_doctor",
+        "//examples:dev_profile_install",
+        "//examples:dev_profile_start",
+        "//examples:fake_codex.sh",
+    ],
+)
