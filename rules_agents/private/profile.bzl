@@ -1,5 +1,7 @@
 """Internal implementation for agent profiles."""
 
+load(":providers.bzl", "AgentSkillInfo")
+
 _VALID_AGENTS = (
     "claude_code",
     "codex",
@@ -22,7 +24,7 @@ def _agent_profile_impl(ctx):
 """ % (
             ctx.label.name,
             ctx.attr.agent,
-            ", ".join(['"%s"' % skill.label for skill in ctx.attr.skills]),
+            ", ".join(['"%s"' % skill[AgentSkillInfo].skill_id for skill in ctx.attr.skills]),
             ", ".join(['"%s"' % env for env in ctx.attr.credential_env]),
         ),
     )
@@ -36,7 +38,10 @@ agent_profile = rule(
     implementation = _agent_profile_impl,
     attrs = {
         "agent": attr.string(mandatory = True),
-        "skills": attr.label_list(allow_files = False),
+        "skills": attr.label_list(
+            allow_files = False,
+            providers = [[AgentSkillInfo]],
+        ),
         "credential_env": attr.string_list(),
     },
 )

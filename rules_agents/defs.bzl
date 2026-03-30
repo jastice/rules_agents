@@ -1,6 +1,7 @@
 """Public rules_agents API surface."""
 
 load("//rules_agents/private:profile.bzl", _agent_profile = "agent_profile")
+load("//rules_agents/private:skill_rule.bzl", _agent_skill = "agent_skill")
 
 
 def agent_profile(name, agent, skills = [], credential_env = []):
@@ -18,8 +19,9 @@ def agent_profile(name, agent, skills = [], credential_env = []):
 
 
 def agent_skill(name, root, srcs):
-    """Placeholder for a portable skill bundle declaration."""
-    native.filegroup(
+    """Declares a portable skill bundle rooted at `SKILL.md`."""
+    _agent_skill(
         name = name,
+        root = root,
         srcs = srcs,
     )

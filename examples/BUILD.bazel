@@ -1,0 +1,16 @@
+package(default_visibility = ["//visibility:public"])
+
+load("//rules_agents:defs.bzl", "agent_profile", "agent_skill")
+
+agent_skill(
+    name = "repo_helper",
+    root = "skills/repo_helper",
+    srcs = glob(["skills/repo_helper/**"], exclude_directories = 1),
+)
+
+agent_profile(
+    name = "dev_profile",
+    agent = "codex",
+    skills = [":repo_helper"],
+    credential_env = ["OPENAI_API_KEY"],
+)

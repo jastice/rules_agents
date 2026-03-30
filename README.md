@@ -162,9 +162,11 @@ This repository is still in the scaffold phase.
 Current state:
 
 - Bazel module and package layout exist
+- `.bazelversion` pins the local Bazel version used in development
 - bootstrap `dev` and `dev_doctor` targets exist in `agent/`
-- public API placeholders exist in `rules_agents/defs.bzl`
-- skill packaging, manifest generation, installation, and real agent launch behavior are not implemented yet
+- `agent_skill` is implemented and packages local skills as tree artifacts
+- `agent_profile` is still a placeholder that emits a minimal manifest-shaped JSON file
+- remote skill resolution, installation, doctor, and real agent launch behavior are not implemented yet
 
 Today the bootstrap commands validate repository wiring and print scaffold status. They do
 not yet package skills, write managed install directories, or launch real agent binaries.
@@ -174,6 +176,7 @@ not yet package skills, write managed install directories, or launch real agent 
 - `MODULE.bazel`: Bazel module root
 - `BUILD.bazel`: top-level Bazel package
 - `agent/`: current bootstrap scripts and Bazel targets
+- `examples/`: minimal local skill and profile targets
 - `rules_agents/`: public Starlark surface
 - `rules_agents/private/`: internal implementation
 - `rules_agents spec.md`: product spec and implementation plan
