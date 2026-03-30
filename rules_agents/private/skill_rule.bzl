@@ -122,9 +122,9 @@ done
     return [
         DefaultInfo(files = depset([bundle])),
         AgentSkillInfo(
-            bundle = bundle,
+            bundle_dir = bundle,
             logical_name = ctx.label.name,
-            root = ctx.attr.root,
+            src_root = ctx.attr.root,
             skill_id = _skill_id(ctx.label),
         ),
     ]

@@ -165,7 +165,7 @@ Current state:
 - `.bazelversion` pins the local Bazel version used in development
 - bootstrap `dev` and `dev_doctor` targets exist in `agent/`
 - `agent_skill` is implemented and packages local skills as tree artifacts
-- `agent_profile` is still a placeholder that emits a minimal manifest-shaped JSON file
+- profile manifest generation is implemented with deterministic `skill_id` and `managed_dir_name` entries
 - remote skill resolution, installation, doctor, and real agent launch behavior are not implemented yet
 
 Today the bootstrap commands validate repository wiring and print scaffold status. They do
