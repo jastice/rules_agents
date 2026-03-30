@@ -12,6 +12,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from python.runfiles import Runfiles
+
 TOOL_VERSION = "0.1.0"
 OWNER_MARKER_NAME = ".bazel_agent_env_owner.json"
 CLEANUP_MANIFEST_PREFIX = ".bazel_agent_env_"
@@ -52,43 +54,37 @@ def fail(message: str) -> None:
     raise SystemExit(1)
 
 
-def try_resolve_runfile(path: str) -> Path | None:
+def create_runfiles() -> Runfiles:
+    runfiles = Runfiles.Create()
+    if runfiles is None:
+        fail("unable to initialize Bazel runfiles support")
+    return runfiles
+
+
+def try_resolve_runfile(path: str, runfiles: Runfiles) -> Path | None:
     candidate = Path(path)
     if candidate.is_absolute():
         return candidate
 
-    runfiles_dir = os.environ.get("RUNFILES_DIR")
-    if runfiles_dir:
-        resolved = Path(runfiles_dir) / path
-        if resolved.exists():
-            return resolved
-
-    manifest_file = os.environ.get("RUNFILES_MANIFEST_FILE")
-    if manifest_file:
-        with open(manifest_file, "r", encoding="utf-8") as handle:
-            for line in handle:
-                record = line.rstrip("\n").split(" ", 1)
-                if len(record) == 2 and record[0] == path:
-                    return Path(record[1])
-
-    return None
+    resolved = runfiles.Rlocation(path)
+    return Path(resolved) if resolved else None
 
 
-def resolve_runfile(path: str) -> Path:
-    resolved = try_resolve_runfile(path)
+def resolve_runfile(path: str, runfiles: Runfiles) -> Path:
+    resolved = try_resolve_runfile(path, runfiles)
     if resolved is None:
         fail(f"unable to resolve runfile {path!r}")
     return resolved
 
 
-def load_manifest(path: str) -> dict:
-    manifest_path = resolve_runfile(path)
+def load_manifest(path: str, runfiles: Runfiles) -> dict:
+    manifest_path = resolve_runfile(path, runfiles)
     with open(manifest_path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
-def resolve_bundle_root(bundle_runfiles_path: str) -> Path | None:
-    skill_md = try_resolve_runfile(bundle_runfiles_path + "/SKILL.md")
+def resolve_bundle_root(bundle_runfiles_path: str, runfiles: Runfiles) -> Path | None:
+    skill_md = try_resolve_runfile(bundle_runfiles_path + "/SKILL.md", runfiles)
     if skill_md is None:
         return None
     return skill_md.parent
@@ -132,10 +128,10 @@ def validate_credentials(manifest: dict) -> list[str]:
     return missing
 
 
-def validate_skill_bundles(manifest: dict) -> list[tuple[str, Path]]:
+def validate_skill_bundles(manifest: dict, runfiles: Runfiles) -> list[tuple[str, Path]]:
     failures = []
     for skill in manifest.get("skills", []):
-        bundle_dir = resolve_bundle_root(skill["bundle_runfiles_path"])
+        bundle_dir = resolve_bundle_root(skill["bundle_runfiles_path"], runfiles)
         if bundle_dir is None or not (bundle_dir / "SKILL.md").is_file():
             failures.append((skill["skill_id"], Path(skill["bundle_runfiles_path"])))
     return failures
@@ -219,8 +215,8 @@ def write_owner_marker(path: Path, manifest: dict, managed_dir_name: str) -> Non
     write_json_file(path / OWNER_MARKER_NAME, owner_marker_contents(manifest, managed_dir_name))
 
 
-def stage_skill_bundle(skill_root: Path, manifest: dict, skill: dict) -> Path:
-    bundle_dir = resolve_bundle_root(skill["bundle_runfiles_path"])
+def stage_skill_bundle(skill_root: Path, manifest: dict, skill: dict, runfiles: Runfiles) -> Path:
+    bundle_dir = resolve_bundle_root(skill["bundle_runfiles_path"], runfiles)
     if bundle_dir is None:
         fail(f"unable to resolve bundle for skill {skill['skill_id']}")
     temp_dir = Path(
@@ -251,7 +247,7 @@ def replace_owned_destination(temp_dir: Path, destination: Path) -> None:
     shutil.rmtree(backup)
 
 
-def install_declared_skills(workspace_root: Path, manifest: dict) -> list[str]:
+def install_declared_skills(workspace_root: Path, manifest: dict, runfiles: Runfiles) -> list[str]:
     skill_root = native_skill_root(workspace_root, manifest)
     skill_root.mkdir(parents=True, exist_ok=True)
     cleanup_path = cleanup_manifest_path(skill_root, manifest["profile_name"])
@@ -261,7 +257,7 @@ def install_declared_skills(workspace_root: Path, manifest: dict) -> list[str]:
     for skill in manifest.get("skills", []):
         managed_dir_name = skill["managed_dir_name"]
         destination = skill_root / managed_dir_name
-        staged_dir = stage_skill_bundle(skill_root, manifest, skill)
+        staged_dir = stage_skill_bundle(skill_root, manifest, skill, runfiles)
         installed_managed_dirs.append(managed_dir_name)
         staged_parent = staged_dir.parent
         try:
@@ -295,12 +291,12 @@ def install_declared_skills(workspace_root: Path, manifest: dict) -> list[str]:
     return stale_dirs
 
 
-def run_install(manifest: dict) -> int:
+def run_install(manifest: dict, runfiles: Runfiles) -> int:
     workspace_root = resolve_workspace_root()
-    return perform_install(manifest, workspace_root, verbose=True)
+    return perform_install(manifest, workspace_root, runfiles, verbose=True)
 
 
-def perform_install(manifest: dict, workspace_root: Path, verbose: bool) -> int:
+def perform_install(manifest: dict, workspace_root: Path, runfiles: Runfiles, verbose: bool) -> int:
     missing_credentials = validate_credentials(manifest)
     if missing_credentials:
         print("rules_agents install", file=sys.stderr)
@@ -308,7 +304,7 @@ def perform_install(manifest: dict, workspace_root: Path, verbose: bool) -> int:
             print(f"missing credential: {env_name}", file=sys.stderr)
         return 1
 
-    bundle_failures = validate_skill_bundles(manifest)
+    bundle_failures = validate_skill_bundles(manifest, runfiles)
     if bundle_failures:
         print("rules_agents install", file=sys.stderr)
         for skill_id, bundle_path in bundle_failures:
@@ -316,7 +312,7 @@ def perform_install(manifest: dict, workspace_root: Path, verbose: bool) -> int:
         return 1
 
     skill_root = native_skill_root(workspace_root, manifest)
-    removed = install_declared_skills(workspace_root, manifest)
+    removed = install_declared_skills(workspace_root, manifest, runfiles)
 
     if verbose:
         print("rules_agents install")
@@ -340,7 +336,7 @@ def normalized_extra_args(values: list[str]) -> list[str]:
     return values
 
 
-def run_start(manifest: dict, extra_args: list[str]) -> int:
+def run_start(manifest: dict, runfiles: Runfiles, extra_args: list[str]) -> int:
     workspace_root = resolve_workspace_root()
     binary, binary_detail = resolve_agent_binary(manifest["agent"])
     if binary is None:
@@ -348,7 +344,7 @@ def run_start(manifest: dict, extra_args: list[str]) -> int:
         print(f"missing agent binary: {binary_detail}", file=sys.stderr)
         return 1
 
-    install_status = perform_install(manifest, workspace_root, verbose=False)
+    install_status = perform_install(manifest, workspace_root, runfiles, verbose=False)
     if install_status != 0:
         return install_status
 
@@ -359,7 +355,7 @@ def run_start(manifest: dict, extra_args: list[str]) -> int:
     return 1
 
 
-def print_doctor(manifest: dict) -> int:
+def print_doctor(manifest: dict, runfiles: Runfiles) -> int:
     agent = manifest["agent"]
     adapter = AGENT_ADAPTERS.get(agent)
     if adapter is None:
@@ -369,7 +365,7 @@ def print_doctor(manifest: dict) -> int:
     native_skill_root = workspace_root / adapter["project_skill_root"]
     binary, binary_detail = resolve_agent_binary(agent)
     missing_credentials = validate_credentials(manifest)
-    bundle_failures = validate_skill_bundles(manifest)
+    bundle_failures = validate_skill_bundles(manifest, runfiles)
 
     print("rules_agents doctor")
     print(f"profile: {manifest['profile_name']}")
@@ -384,7 +380,7 @@ def print_doctor(manifest: dict) -> int:
 
     print("skills:")
     for skill in manifest.get("skills", []):
-        bundle_dir = resolve_bundle_root(skill["bundle_runfiles_path"])
+        bundle_dir = resolve_bundle_root(skill["bundle_runfiles_path"], runfiles)
         skill_ok = bundle_dir is not None and (bundle_dir / "SKILL.md").is_file()
         print(
             "  - %s logical_name=%s managed_dir=%s bundle=%s status=%s"
@@ -414,14 +410,15 @@ def print_doctor(manifest: dict) -> int:
 
 def main() -> int:
     args = parse_args()
-    manifest = load_manifest(args.manifest_path)
+    runfiles = create_runfiles()
+    manifest = load_manifest(args.manifest_path, runfiles)
 
     if args.command == "doctor":
-        return print_doctor(manifest)
+        return print_doctor(manifest, runfiles)
     if args.command == "install":
-        return run_install(manifest)
+        return run_install(manifest, runfiles)
     if args.command == "start":
-        return run_start(manifest, args.extra_args)
+        return run_start(manifest, runfiles, args.extra_args)
 
     fail(f"{args.command} is not implemented yet")
     return 1

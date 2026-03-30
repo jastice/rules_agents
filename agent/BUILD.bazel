@@ -1,13 +1,13 @@
 package(default_visibility = ["//visibility:public"])
 
-load("//rules_agents/private:script_binary.bzl", "script_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-script_binary(
+sh_binary(
     name = "dev",
-    src = "dev.sh",
+    srcs = ["dev.sh"],
 )
 
-script_binary(
+sh_binary(
     name = "dev_doctor",
-    src = "dev_doctor.sh",
+    srcs = ["dev_doctor.sh"],
 )

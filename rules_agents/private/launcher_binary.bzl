@@ -2,7 +2,7 @@
 
 
 def _launcher_binary_impl(ctx):
-    launcher = ctx.file.launcher
+    launcher = ctx.executable.launcher
     manifest = ctx.file.manifest
     executable = ctx.actions.declare_file(ctx.label.name)
     workspace_name = ctx.workspace_name or "_main"
@@ -15,7 +15,7 @@ export RUNFILES_DIR="$runfiles_dir"
 launcher="$runfiles_dir/{workspace}/{launcher_short_path}"
 manifest="$runfiles_dir/{workspace}/{manifest_short_path}"
 
-exec python3 "$launcher" "{subcommand}" "$manifest" "$@"
+exec "$launcher" "{subcommand}" "$manifest" "$@"
 """.format(
         launcher_short_path = launcher.short_path,
         manifest_short_path = manifest.short_path,
@@ -29,11 +29,13 @@ exec python3 "$launcher" "{subcommand}" "$manifest" "$@"
         is_executable = True,
     )
 
+    runfiles = ctx.runfiles(files = [manifest])
+    runfiles = runfiles.merge(ctx.attr.launcher[DefaultInfo].default_runfiles)
+    runfiles = runfiles.merge(ctx.attr.manifest[DefaultInfo].default_runfiles)
+
     return DefaultInfo(
         executable = executable,
-        runfiles = ctx.runfiles(files = [launcher, manifest]).merge(
-            ctx.attr.manifest[DefaultInfo].default_runfiles,
-        ),
+        runfiles = runfiles,
     )
 
 
@@ -41,8 +43,9 @@ launcher_binary = rule(
     implementation = _launcher_binary_impl,
     attrs = {
         "launcher": attr.label(
-            allow_single_file = True,
-            default = "//rules_agents/runtime:launcher.py",
+            cfg = "target",
+            default = "//rules_agents/runtime:launcher",
+            executable = True,
         ),
         "manifest": attr.label(
             allow_single_file = True,

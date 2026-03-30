@@ -3,4 +3,5 @@ module(
     version = "0.1.0",
 )
 
+bazel_dep(name = "rules_python", version = "1.7.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
