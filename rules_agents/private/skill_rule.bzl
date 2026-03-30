@@ -39,6 +39,8 @@ def _skill_id(label):
 def _validate_root(root):
     if not root:
         fail("root must be a non-empty relative path")
+    if root == ".":
+        return
     if root.startswith("/") or root.endswith("/"):
         fail("root must be a normalized relative path, got %r" % root)
     if "//" in root:
@@ -49,24 +51,39 @@ def _validate_root(root):
 
 
 def _root_prefix(label, root):
+    if root == ".":
+        return label.package
     if label.package:
         return label.package + "/" + root
     return root
 
 
-def _bundle_relpath(file, bundle_root):
-    if file.short_path == bundle_root:
-        fail("srcs must contain files under %r, got %r" % (bundle_root, file.short_path))
+def _workspace_relative_short_path(label, file):
+    if not label.workspace_name:
+        return file.short_path
+
+    prefix = "../" + label.workspace_name + "/"
+    if file.short_path.startswith(prefix):
+        return file.short_path[len(prefix):]
+    return file.short_path
+
+
+def _bundle_relpath(label, file, bundle_root):
+    short_path = _workspace_relative_short_path(label, file)
+    if not bundle_root:
+        return short_path
+    if short_path == bundle_root:
+        fail("srcs must contain files under %r, got %r" % (bundle_root, short_path))
     prefix = bundle_root + "/"
-    if not file.short_path.startswith(prefix):
+    if not short_path.startswith(prefix):
         fail(
             "src %r is outside root %r; expected files under %r" % (
-                file.short_path,
+                short_path,
                 bundle_root,
                 bundle_root,
             ),
         )
-    return file.short_path[len(prefix):]
+    return short_path[len(prefix):]
 
 
 def _agent_skill_impl(ctx):
@@ -84,7 +101,7 @@ def _agent_skill_impl(ctx):
     srcs_by_short_path = {src.short_path: src for src in ctx.files.srcs}
     for short_path in sorted(srcs_by_short_path.keys()):
         src = srcs_by_short_path[short_path]
-        relpath = _bundle_relpath(src, bundle_root)
+        relpath = _bundle_relpath(ctx.label, src, bundle_root)
         if relpath == "SKILL.md":
             has_skill_md = True
         source_mappings.append("%s=%s" % (src.path, relpath))
