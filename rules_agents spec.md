@@ -23,7 +23,7 @@ After a user installs a supported agent client separately, they should be able t
 Desired user experience:
 
 ```bash
-bazel run //ai:dev
+bazel run //agent:dev
 ```
 
 Expected result:
@@ -195,13 +195,13 @@ Semantics:
 
 - `agent` is an enum with exactly two values in v1: `codex`, `claude_code`
 - `skills` is a list of `agent_skill` targets
-- `credential_env` is a list of environment variable names to require and pass through unchanged to the launched process
+- `credential_env` is a list of environment variable names to require in the parent environment and forward unchanged to the launched process
 
 Generated targets:
 
-- `//ai:dev` — install + start
-- `//ai:dev_doctor` — validate without launching
-- `//ai:dev_manifest` — machine-readable manifest artifact
+- `//agent:dev` — install + start
+- `//agent:dev_doctor` — validate without launching
+- `//agent:dev_manifest` — machine-readable manifest artifact
 
 Implementation note:
 
@@ -209,8 +209,7 @@ Use a **macro** for the public API.
 
 ### 7.3 `skill_deps` module extension
 
-Declared in the consumer's `MODULE.bazel`. Resolves remote skill archives by URL and
-SRI hash. Synthesizes `agent_skill` targets by convention from the downloaded content.
+Declared in the consumer's `MODULE.bazel`. Resolves remote skill archives by URLSynthesizes `agent_skill` targets by convention from the downloaded content.
 
 ```python
 # MODULE.bazel
@@ -251,7 +250,7 @@ Any directory at the archive root containing a `SKILL.md` becomes a target. The 
 
 ## 8. Internal architecture
 
-Split the implementation into four layers.
+Split the implementation into five layers.
 
 ### 8.1 Layer A: skill packaging
 
@@ -268,8 +267,12 @@ Suggested provider:
 Suggested fields:
 
 - `bundle_dir`: tree artifact containing the packaged skill
+- `skill_id`: stable internal identifier derived from the canonical Bazel label
 - `logical_name`: stable name derived from label name
 - `src_root`: original declared root for diagnostics
+
+`skill_id` is the install identity. It is distinct from any model-visible name declared inside
+`SKILL.md` and distinct from the human-friendly `logical_name` used in diagnostics.
 
 The bundle artifact should contain:
 
@@ -297,9 +300,10 @@ Manifest schema v1:
   "credential_env": ["OPENAI_API_KEY"],
   "skills": [
     {
+      "skill_id": "ai_bazel_debug_skill_a1b2c3d4",
       "logical_name": "bazel_debug_skill",
       "bundle_runfiles_path": "...",
-      "managed_dir_name": "__bazel_agent_env__dev__bazel_debug_skill"
+      "managed_dir_name": "__bazel_agent_env__dev__ai_bazel_debug_skill_a1b2c3d4"
     }
   ]
 }
@@ -307,7 +311,9 @@ Manifest schema v1:
 
 Rules:
 
+- `skill_id` must be deterministic and collision-resistant within a workspace
 - `managed_dir_name` must be deterministic
+- `managed_dir_name` must be derived from the profile name and `skill_id`, not from `logical_name` alone
 - no secret values may appear in the manifest
 - the manifest must contain runfiles-resolvable paths to packaged skill bundles
 
@@ -349,6 +355,11 @@ Convention for synthesis:
 - target name = directory name
 - nested skill directories (skills within skills) are not supported in v1
 
+Skill validity in v1 is defined by bundle shape, not by metadata schema:
+
+- a skill is valid if it packages a `SKILL.md` at its root
+- missing frontmatter fields are not a validity failure in v1
+
 The synthesized BUILD.bazel is an implementation detail. Consumers reference targets
 only by label.
 
@@ -387,8 +398,8 @@ The launcher must install only into a managed namespace under the native skill r
 
 Examples:
 
-- Codex: `<repo>/.agents/skills/__bazel_agent_env__dev__bazel_debug_skill/`
-- Claude Code: `<repo>/.claude/skills/__bazel_agent_env__dev__bazel_debug_skill/`
+- Codex: `<repo>/.agents/skills/__bazel_agent_env__dev__ai_bazel_debug_skill_a1b2c3d4/`
+- Claude Code: `<repo>/.claude/skills/__bazel_agent_env__dev__ai_bazel_debug_skill_a1b2c3d4/`
 
 Reason:
 
@@ -399,6 +410,8 @@ Reason:
 Important detail:
 
 The model-visible skill name comes from `SKILL.md`, not from the directory name. The managed directory name may therefore be prefixed for isolation.
+The managed directory name must be based on the stable internal `skill_id`, not on the model-visible
+name from `SKILL.md` and not on `logical_name` alone.
 
 ### 9.2 Install behavior
 
@@ -407,9 +420,11 @@ On every `install` or `start`:
 1. resolve the native skill root for the selected agent
 2. create the root if missing
 3. for each declared skill:
-   - delete any existing managed directory for that skill/profile
+   - if a managed directory for that skill/profile already exists and is owned by this tool, replace it
+   - if the destination exists but is not owned by this tool, fail with a clear error
    - copy the packaged bundle into the managed directory
-4. remove stale managed directories belonging to this profile that are no longer declared
+   - write a small ownership marker inside the managed directory
+4. remove stale managed directories belonging to this profile that are no longer declared, but only if they are recorded in the prior cleanup manifest and still carry a matching ownership marker
 5. write a small profile-local manifest file for diagnostics and cleanup
 
 Suggested cleanup manifest location:
@@ -425,14 +440,23 @@ Suggested cleanup manifest contents:
 - install timestamp
 - tool version
 
+Suggested ownership marker contents:
+
+- profile name
+- agent id
+- managed directory name
+- tool version
+
 ### 9.3 Conflict policy
 
 The launcher must never delete or overwrite directories it does not own.
 
 Rules:
 
-- only delete directories listed in the last cleanup manifest for the same profile, or directories whose names match the managed prefix for the same profile
-- if a destination directory exists but is not managed by this tool, fail with a clear error
+- a directory is owned by this tool only if it is listed in the last cleanup manifest for the same profile and contains a matching ownership marker written by this tool
+- only delete stale directories that satisfy that ownership test
+- directory-name prefix matching may be used for diagnostics, but must not be used as the authority to delete or overwrite
+- if a destination directory exists but is not owned by this tool, fail with a clear error
 
 ## 10. Credential handling
 
@@ -443,6 +467,8 @@ Credential handling in v1 is deliberately narrow.
 - credentials are declared as environment variable names in `credential_env`
 - the launcher checks that each name is present in the parent environment
 - the launcher passes those variables through unchanged to the child process
+- the launcher otherwise inherits the parent environment unchanged
+- `credential_env` is not a full environment allowlist in v1
 - the launcher never writes credential values to disk
 - the launcher never writes credential values into the Bazel manifest
 
@@ -460,7 +486,7 @@ Codex may still rely on its own existing login/auth state for interactive use. v
 
 ## 11. Start behavior
 
-`bazel run //ai:dev -- <extra args>` should work.
+`bazel run //agent:dev -- <extra args>` should work.
 
 Runtime contract for `start`:
 
@@ -471,7 +497,7 @@ Runtime contract for `start`:
 5. install or refresh managed skills
 6. `execve` the agent binary with:
    - current working directory = workspace root
-   - environment = current environment plus the allowlisted pass-through vars
+   - environment = inherited parent environment
    - argv = resolved binary + forwarded user args
 
 Important:
@@ -490,7 +516,7 @@ Runtime contract for `doctor`:
 - print native install root
 - print whether the agent binary was found and where
 - validate every skill bundle contains `SKILL.md`
-- optionally parse `SKILL.md` front matter enough to confirm the presence of `name` and `description`
+- optionally parse `SKILL.md` front matter for diagnostics only
 - print which credentials are required and whether each is set
 - print the managed install directories that would be written
 - exit nonzero on any failure
@@ -542,11 +568,12 @@ Tasks:
 - define the provider
 - package `srcs` under `root` into a tree artifact
 - validate that `SKILL.md` exists at bundle root
-- expose the tree artifact and logical name
+- derive and expose a stable `skill_id` together with the tree artifact and logical name
 
 Acceptance criteria:
 
 - a sample skill builds successfully
+- similarly named skills from different labels produce distinct `skill_id` values
 - malformed skill input fails with a clear error
 
 ### Step 3: Implement manifest generation
@@ -555,11 +582,13 @@ Tasks:
 
 - define manifest schema v1
 - implement private manifest rule that aggregates skills and `credential_env`
+- derive deterministic `managed_dir_name` values from profile name and `skill_id`
 - emit a JSON file
 
 Acceptance criteria:
 
 - the JSON manifest is deterministic
+- manifest entries remain distinct for similarly named skills from different labels
 - manifest contains no secrets
 - manifest paths can be resolved from the runtime launcher via runfiles
 
@@ -619,7 +648,7 @@ Tasks:
   targets by convention (any directory containing `SKILL.md`)
 - generate a BUILD.bazel in the external repo exposing one `agent_skill` target per
   discovered skill directory, named after the directory
-- validate `SKILL.md` presence and required frontmatter fields at synthesis time
+- validate `SKILL.md` presence at synthesis time
 
 Acceptance criteria:
 
@@ -710,9 +739,9 @@ agent_profile(
 Expected user commands:
 
 ```bash
-bazel run //ai:dev_doctor
-bazel run //ai:dev
-bazel run //ai:dev -- --help
+bazel run //agent:dev_doctor
+bazel run //agent:dev
+bazel run //agent:dev -- --help
 ```
 
 ## 16. Acceptance criteria for the whole MVP
@@ -721,7 +750,7 @@ The MVP is done when all of the following are true:
 
 1. a repo can declare a profile for `codex` or `claude_code`
 2. declared skills are packaged by Bazel and installed into the agent's native project-local skill root
-3. remote skills are resolved from a URL, verified by SRI hash, and installable identically to local skills
+3. remote skills are resolved from a URL, and installable identically to local skills
 4. required env vars are validated and forwarded
 5. `bazel run //...:profile` launches the selected agent from the repo root
 6. `doctor` explains failures clearly
