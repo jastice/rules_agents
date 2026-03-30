@@ -166,7 +166,8 @@ Current state:
 - bootstrap `dev` and `dev_doctor` targets exist in `agent/`
 - `agent_skill` is implemented and packages local skills as tree artifacts
 - profile manifest generation is implemented with deterministic `skill_id` and `managed_dir_name` entries
-- remote skill resolution, installation, doctor, and real agent launch behavior are not implemented yet
+- the runtime launcher supports manifest loading, workspace resolution, binary resolution, credential checks, and `doctor`
+- remote skill resolution, installation, and real agent launch behavior are not implemented yet
 
 Today the bootstrap commands validate repository wiring and print scaffold status. They do
 not yet package skills, write managed install directories, or launch real agent binaries.
@@ -179,4 +180,5 @@ not yet package skills, write managed install directories, or launch real agent 
 - `examples/`: minimal local skill and profile targets
 - `rules_agents/`: public Starlark surface
 - `rules_agents/private/`: internal implementation
+- `rules_agents/runtime/`: runtime launcher implementation
 - `rules_agents spec.md`: product spec and implementation plan

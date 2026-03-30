@@ -1,6 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
 load("//rules_agents:defs.bzl", "agent_profile", "agent_skill")
+load("//rules_agents/private:launcher_binary.bzl", "launcher_binary")
 
 agent_skill(
     name = "repo_helper",
@@ -13,4 +14,10 @@ agent_profile(
     agent = "codex",
     skills = [":repo_helper"],
     credential_env = ["OPENAI_API_KEY"],
+)
+
+launcher_binary(
+    name = "dev_profile_doctor",
+    manifest = ":dev_profile",
+    subcommand = "doctor",
 )
