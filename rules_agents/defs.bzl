@@ -7,8 +7,10 @@ load("//rules_agents/private:skill_rule.bzl", _agent_skill = "agent_skill")
 def agent_profile(name, agent, skills = [], credential_env = []):
     """Declares a runnable local agent environment.
 
-    This is a v1 placeholder macro. It validates the public API shape while the
-    implementation is being built out.
+    Generates:
+      - :name for install + start
+      - :name_doctor for validation without launch
+      - :name_manifest for the machine-readable manifest artifact
     """
     _agent_profile(
         name = name,

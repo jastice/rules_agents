@@ -5,7 +5,7 @@ set -euo pipefail
 readonly REPO_RUNFILES_ROOT="${TEST_SRCDIR}/_main"
 readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_doctor"
 readonly INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_install"
-readonly START_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_start"
+readonly START_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile"
 readonly FAKE_CODEX_SRC="${REPO_RUNFILES_ROOT}/examples/fake_codex.sh"
 readonly MANAGED_DIR="__bazel_agent_env__dev_profile__main__examples__repo_helper"
 

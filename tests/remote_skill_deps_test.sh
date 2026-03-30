@@ -102,6 +102,7 @@ main() {
   local root_archive="${tmp_root}/remote-root-skill.tar.gz"
   local dirs_archive="${tmp_root}/remote-dir-skills.tar.gz"
   local manifest_path=
+  local manifest_relpath=
 
   bazel_bin="$(resolve_bazel)"
   mkdir -p "$workspace_dir"
@@ -113,10 +114,14 @@ main() {
 
   (
     cd "$workspace_dir"
-    "$bazel_bin" build //:dev
+    "$bazel_bin" build //:dev_manifest
   )
 
-  manifest_path="${workspace_dir}/bazel-bin/dev.json"
+  manifest_relpath="$(
+    cd "$workspace_dir" &&
+      "$bazel_bin" cquery --output=files //:dev_manifest
+  )"
+  manifest_path="${workspace_dir}/${manifest_relpath}"
   [[ -f "$manifest_path" ]] || fail "expected manifest missing: $manifest_path"
   grep -q '"logical_name": "remote_root_skill"' "$manifest_path" || \
     fail "manifest omitted archive-root remote skill"

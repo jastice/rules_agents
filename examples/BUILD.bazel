@@ -17,21 +17,9 @@ agent_profile(
 )
 
 launcher_binary(
-    name = "dev_profile_doctor",
-    manifest = ":dev_profile",
-    subcommand = "doctor",
-)
-
-launcher_binary(
     name = "dev_profile_install",
-    manifest = ":dev_profile",
+    manifest = ":dev_profile_manifest",
     subcommand = "install",
-)
-
-launcher_binary(
-    name = "dev_profile_start",
-    manifest = ":dev_profile",
-    subcommand = "start",
 )
 
 exports_files(["fake_codex.sh"])

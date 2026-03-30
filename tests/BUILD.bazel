@@ -18,7 +18,7 @@ sh_test(
     data = [
         "//examples:dev_profile_doctor",
         "//examples:dev_profile_install",
-        "//examples:dev_profile_start",
+        "//examples:dev_profile",
         "//examples:fake_codex.sh",
     ],
 )
