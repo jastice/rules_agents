@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
-load(":test_rules.bzl", "sh_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 sh_test(
     name = "doctor_test",
