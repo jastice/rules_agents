@@ -157,28 +157,33 @@ The product and architecture source of truth is `rules_agents spec.md`.
 
 ## Current Status
 
-This repository is still in the scaffold phase.
+The v1 slice described in `rules_agents spec.md` is implemented:
 
-Current state:
+- `agent_skill` packages local skill bundles and validates bundle shape
+- `agent_profile` generates `:name`, `:name_doctor`, and `:name_manifest`
+- the runtime launcher supports `doctor`, `install`, and `start`
+- managed installs land under `.agents/skills` for Codex and `.claude/skills` for Claude Code
+- `skill_deps.remote(...)` synthesizes remote `agent_skill` targets from archive contents
+- examples exist for both supported agents
 
-- Bazel module and package layout exist
-- `.bazelversion` pins the local Bazel version used in development
-- bootstrap `dev` and `dev_doctor` targets exist in `agent/`
-- `agent_skill` is implemented and packages local skills as tree artifacts
-- profile manifest generation is implemented with deterministic `skill_id` and `managed_dir_name` entries
-- the runtime launcher supports manifest loading, workspace resolution, binary resolution, credential checks, `doctor`, `install`, and `start`
-- Bazel integration tests cover `doctor`, `install`, stale cleanup, unmanaged conflicts, and `start` with a fake binary
-- remote skill resolution is not implemented yet
+Repository verification today:
 
-Today the bootstrap commands validate repository wiring and print scaffold status. They do
-not yet package skills, write managed install directories, or launch real agent binaries.
+- `bazel test //tests:all`
+- `tests/remote_skill_deps_test.sh`
+- `tests/missing_skill_md_test.sh`
+
+## Example Targets
+
+- `//agent:dev`, `//agent:dev_doctor`, `//agent:dev_manifest` alias the Codex example profile
+- `//agent:claude_dev`, `//agent:claude_dev_doctor`, `//agent:claude_dev_manifest` alias the Claude Code example profile
+- `//examples:dev_profile_install` and `//examples:claude_profile_install` are example install-only wrappers used by tests
 
 ## Repository Layout
 
 - `MODULE.bazel`: Bazel module root
 - `BUILD.bazel`: top-level Bazel package
-- `agent/`: current bootstrap scripts and Bazel targets
-- `examples/`: minimal local skill and profile targets
+- `agent/`: example-facing aliases for the runnable profiles
+- `examples/`: working local skill and profile targets for both agents
 - `tests/`: Bazel integration tests for the launcher flow
 - `rules_agents/`: public Starlark surface
 - `rules_agents/private/`: internal implementation

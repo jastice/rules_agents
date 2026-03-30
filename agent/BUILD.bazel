@@ -1,13 +1,31 @@
 package(default_visibility = ["//visibility:public"])
 
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-
-sh_binary(
+alias(
     name = "dev",
-    srcs = ["dev.sh"],
+    actual = "//examples:dev_profile",
 )
 
-sh_binary(
+alias(
     name = "dev_doctor",
-    srcs = ["dev_doctor.sh"],
+    actual = "//examples:dev_profile_doctor",
+)
+
+alias(
+    name = "dev_manifest",
+    actual = "//examples:dev_profile_manifest",
+)
+
+alias(
+    name = "claude_dev",
+    actual = "//examples:claude_profile",
+)
+
+alias(
+    name = "claude_dev_doctor",
+    actual = "//examples:claude_profile_doctor",
+)
+
+alias(
+    name = "claude_dev_manifest",
+    actual = "//examples:claude_profile_manifest",
 )
