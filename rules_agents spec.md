@@ -199,9 +199,11 @@ Semantics:
 
 Generated targets:
 
-- `//agent:dev` — install + start
-- `//agent:dev_doctor` — validate without launching
-- `//agent:dev_manifest` — machine-readable manifest artifact
+- within the package that calls `agent_profile(name = "dev", ...)`, generate `:dev` — install + start
+- within the package that calls `agent_profile(name = "dev", ...)`, generate `:dev_doctor` — validate without launching
+- within the package that calls `agent_profile(name = "dev", ...)`, generate `:dev_manifest` — machine-readable manifest artifact
+
+`//agent:dev` is only an example label for a profile declared in package `//agent`.
 
 Implementation note:
 
@@ -209,7 +211,7 @@ Use a **macro** for the public API.
 
 ### 7.3 `skill_deps` module extension
 
-Declared in the consumer's `MODULE.bazel`. Resolves remote skill archives by URLSynthesizes `agent_skill` targets by convention from the downloaded content.
+Declared in the consumer's `MODULE.bazel`. Resolves remote skill archives by URL and synthesizes `agent_skill` targets by convention from the downloaded content.
 
 ```python
 # MODULE.bazel
@@ -246,7 +248,7 @@ agent_profile(
 ```
 
 The remote repo requires no BUILD files and no knowledge of these rules.
-Any directory at the archive root containing a `SKILL.md` becomes a target. The macro can create a private manifest-producing rule and two runnable wrapper targets. Do not force a single Bazel rule to pretend it can conveniently expose multiple public executables.
+Any directory at the archive root containing a `SKILL.md` becomes a target. If the archive root itself contains `SKILL.md`, treat the archive root as one skill target named after the repository rule's `name`. Do not recurse into nested skill directories inside an already-discovered skill root in v1. The macro can create a private manifest-producing rule and two runnable wrapper targets. Do not force a single Bazel rule to pretend it can conveniently expose multiple public executables.
 
 ## 8. Internal architecture
 
@@ -384,11 +386,18 @@ Suggested v1 mapping:
 - `codex`
   - project skill root: `<workspace>/.agents/skills`
   - binary override env: `CODEX_BIN`
+  - binary candidates, in order: `codex`
 - `claude_code`
   - project skill root: `<workspace>/.claude/skills`
   - binary override env: `CLAUDE_CODE_BIN`
+  - binary candidates, in order: `claude`
 
-`binary_candidates` may start with a short candidate list and can be refined later. The override env var must take precedence over any PATH lookup.
+Binary resolution rules:
+
+- if the binary override env var is set, use it exactly as provided
+- otherwise resolve candidates in order using PATH lookup
+- use the first candidate found
+- if no candidate is found, fail with a clear error naming the override env var and candidate list that were tried
 
 ## 9. Skill installation model
 
@@ -420,10 +429,11 @@ On every `install` or `start`:
 1. resolve the native skill root for the selected agent
 2. create the root if missing
 3. for each declared skill:
-   - if a managed directory for that skill/profile already exists and is owned by this tool, replace it
+   - copy the packaged bundle into a temporary sibling directory under the native skill root
+   - write a small ownership marker inside the temporary directory
+   - if a managed directory for that skill/profile already exists and is owned by this tool, replace it with an atomic rename when the platform supports it
    - if the destination exists but is not owned by this tool, fail with a clear error
-   - copy the packaged bundle into the managed directory
-   - write a small ownership marker inside the managed directory
+   - if atomic rename is unavailable, perform the narrowest safe replace operation and fail without deleting unmanaged directories
 4. remove stale managed directories belonging to this profile that are no longer declared, but only if they are recorded in the prior cleanup manifest and still carry a matching ownership marker
 5. write a small profile-local manifest file for diagnostics and cleanup
 
@@ -446,6 +456,10 @@ Suggested ownership marker contents:
 - agent id
 - managed directory name
 - tool version
+
+Suggested ownership marker filename:
+
+- `.bazel_agent_env_owner.json` at the root of each managed skill directory
 
 ### 9.3 Conflict policy
 
@@ -532,7 +546,11 @@ Preferred runtime rule:
 
 Then normalize to an absolute real path.
 
-The launcher should fail fast if the computed workspace root does not look like a repository root.
+Repository-root validation rule:
+
+- if `BUILD_WORKSPACE_DIRECTORY` is present, treat it as authoritative after normalization
+- otherwise the computed root must contain at least one of: `MODULE.bazel`, `MODULE.bazel.lock`, `WORKSPACE`, or `WORKSPACE.bazel`
+- if none of those files are present, fail fast with a clear error explaining how the workspace root was computed
 
 ## 14. Implementation plan
 
@@ -645,7 +663,7 @@ Tasks:
 - define `skill_deps` module extension in `extensions.bzl`
 - implement `remote` tag class with `name`, `url`, and optional `strip_prefix`
 - implement repository rule that downloads the archive and synthesizes `agent_skill`
-  targets by convention (any directory containing `SKILL.md`)
+  targets by convention (any directory containing `SKILL.md`, plus the archive root itself if it contains `SKILL.md`)
 - generate a BUILD.bazel in the external repo exposing one `agent_skill` target per
   discovered skill directory, named after the directory
 - validate `SKILL.md` presence at synthesis time
@@ -682,6 +700,8 @@ Test cases:
 6. unmanaged directory is preserved
 7. extra args after `--` reach the child process
 8. binary override env var wins over PATH lookup
+9. archive root containing `SKILL.md` synthesizes one usable remote skill target
+10. matching managed-prefix directory without a valid ownership marker is not deleted or overwritten
 
 ### Step 9: Add one example repo target
 
