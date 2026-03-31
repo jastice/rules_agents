@@ -167,7 +167,7 @@ The draft direction in `spec/profile_runner.md` proposes a clearer target split:
 - `agent_profile`: a buildable profile artifact target
 - `agent_runner`: a runtime target that sets up and runs a concrete client or wrapper
 
-The intended target flow in that draft is:
+One example target flow in that draft is:
 
 ```bash
 bazel build //agent:repo_dev_profile
@@ -181,12 +181,21 @@ Meaning:
 2. deploy or synchronize that artifact into repo-local runner state
 3. launch the agent frontend using the realized state
 
-In that proposed model:
+Another example with a different runner would be:
+
+```bash
+bazel build //agent:repo_dev_profile
+bazel run //agent:claude_dev_setup
+bazel run //agent:claude_dev_run
+```
+
+In that proposed model, for example:
 
 - `//...:repo_dev_profile` builds the profile artifact
 - `//...:codex_dev_setup` realizes the profile for a concrete runner
 - `//...:codex_dev_run` launches or attaches to the runner frontend
 - `//...:codex_dev` aliases the default interactive entrypoint
+- `//...:claude_dev_setup` and `//...:claude_dev_run` follow the same pattern for another runner
 
 This is not implemented behavior yet; it is the current design direction under review.
 

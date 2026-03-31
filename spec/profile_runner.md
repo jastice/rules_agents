@@ -419,7 +419,7 @@ agent_runner(
 
 The profile remains stable while the runtime binding changes.
 
-### 12.3 Target flow example
+### 12.3 Target flow examples
 
 ```bash
 bazel build //agent:repo_dev_profile
@@ -432,6 +432,14 @@ Meaning:
 1. build the profile artifact
 2. deploy that profile into repo-local Codex state
 3. launch the Codex frontend using that realized state
+
+Another runner can follow the same pattern:
+
+```bash
+bazel build //agent:repo_dev_profile
+bazel run //agent:claude_dev_setup
+bazel run //agent:claude_dev_run
+```
 
 ## 13. Migration from current v1
 
