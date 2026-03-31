@@ -416,7 +416,8 @@ Reason:
 
 - avoid collisions with user-authored native skills
 - enable deterministic cleanup
-- allow multiple Bazel-managed profiles to coexist in one repo
+- allow multiple Bazel-managed profiles to coexist as Bazel targets in one repo
+- keep exactly one profile active at a time for a given agent's native project-local skill root
 
 Important detail:
 
@@ -437,7 +438,8 @@ On every `install` or `start`:
    - if the destination exists but is not owned by this tool, fail with a clear error
    - if atomic rename is unavailable, perform the narrowest safe replace operation and fail without deleting unmanaged directories
 4. remove stale managed directories belonging to this profile that are no longer declared, but only if they are recorded in the prior cleanup manifest and still carry a matching ownership marker
-5. write a small profile-local manifest file for diagnostics and cleanup
+5. remove managed directories belonging to other Bazel-managed profiles for the same agent root, but only if they are recorded in those profiles' cleanup manifests and still carry matching ownership markers
+6. write a small profile-local manifest file for diagnostics and cleanup
 
 Suggested cleanup manifest location:
 
@@ -637,6 +639,7 @@ Tasks:
 - copy packaged skill trees into the workspace
 - write cleanup manifest
 - remove stale managed directories for the current profile
+- remove managed directories from other profiles for the same agent root
 - enforce unmanaged conflict policy
 
 Acceptance criteria:
