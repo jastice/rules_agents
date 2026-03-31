@@ -159,6 +159,37 @@ The intended v1 public API stays deliberately small:
 The product and architecture source of truth for the implemented v1 slice is `spec/v1.md`.
 Forward-looking design work lives under `spec/`, including `spec/profile_runner.md`.
 
+## Proposed Target Model
+
+The current implementation still follows the v1 `agent_profile` behavior in `spec/v1.md`.
+The draft direction in `spec/profile_runner.md` proposes a clearer target split:
+
+- `agent_profile`: a buildable profile artifact target
+- `agent_runner`: a runtime target that sets up and runs a concrete client or wrapper
+
+The intended target flow in that draft is:
+
+```bash
+bazel build //agent:repo_dev
+bazel run //agent:codex_dev_setup
+bazel run //agent:codex_dev_run
+```
+
+Meaning:
+
+1. build the portable profile artifact
+2. deploy or synchronize that artifact into repo-local runner state
+3. launch the agent frontend using the realized state
+
+In that proposed model:
+
+- `//...:profile_name` builds the profile artifact
+- `//...:runner_name_setup` realizes the profile for a concrete runner
+- `//...:runner_name_run` launches or attaches to the runner frontend
+- `//...:runner_name` aliases the default interactive entrypoint
+
+This is not implemented behavior yet; it is the current design direction under review.
+
 ## Current Status
 
 The v1 slice described in `spec/v1.md` is implemented:
