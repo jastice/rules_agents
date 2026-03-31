@@ -7,7 +7,7 @@ sh_test(
     srcs = ["doctor_test.sh"],
     size = "small",
     data = [
-        "//examples:dev_profile_doctor",
+        "//examples:codex_dev_doctor",
     ],
 )
 
@@ -16,12 +16,12 @@ sh_test(
     srcs = ["install_start_test.sh"],
     size = "small",
     data = [
-        "//examples:claude_profile",
-        "//examples:claude_profile_install",
-        "//examples:dev_profile_doctor",
-        "//examples:dev_profile_install",
-        "//examples:dev_profile_extra_install",
-        "//examples:dev_profile",
+        "//examples:claude_dev",
+        "//examples:claude_dev_setup",
+        "//examples:codex_dev_doctor",
+        "//examples:codex_dev_setup",
+        "//examples:codex_dev_extra_setup",
+        "//examples:codex_dev",
         "//examples:fake_claude.sh",
         "//examples:fake_codex.sh",
     ],

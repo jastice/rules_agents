@@ -1,7 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
-load("//rules_agents:defs.bzl", "agent_profile", "agent_skill")
-load("//rules_agents/private:launcher_binary.bzl", "launcher_binary")
+load("//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
 
 agent_skill(
     name = "repo_helper",
@@ -16,21 +15,19 @@ agent_skill(
 )
 
 agent_profile(
-    name = "dev_profile",
-    agent = "codex",
+    name = "repo_dev_profile",
     skills = [":repo_helper"],
     credential_env = ["OPENAI_API_KEY"],
 )
 
-launcher_binary(
-    name = "dev_profile_install",
-    manifest = ":dev_profile_manifest",
-    subcommand = "install",
+agent_runner(
+    name = "codex_dev",
+    profile = ":repo_dev_profile",
+    runner = "codex",
 )
 
 agent_profile(
-    name = "dev_profile_extra",
-    agent = "codex",
+    name = "repo_dev_profile_extra",
     skills = [
         ":repo_helper",
         ":hello_world",
@@ -38,23 +35,22 @@ agent_profile(
     credential_env = ["OPENAI_API_KEY"],
 )
 
-launcher_binary(
-    name = "dev_profile_extra_install",
-    manifest = ":dev_profile_extra_manifest",
-    subcommand = "install",
+agent_runner(
+    name = "codex_dev_extra",
+    profile = ":repo_dev_profile_extra",
+    runner = "codex",
 )
 
 agent_profile(
-    name = "claude_profile",
-    agent = "claude_code",
+    name = "claude_dev_profile",
     skills = [":repo_helper"],
     credential_env = ["ANTHROPIC_API_KEY"],
 )
 
-launcher_binary(
-    name = "claude_profile_install",
-    manifest = ":claude_profile_manifest",
-    subcommand = "install",
+agent_runner(
+    name = "claude_dev",
+    profile = ":claude_dev_profile",
+    runner = "claude_code",
 )
 
 exports_files([

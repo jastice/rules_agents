@@ -3,18 +3,18 @@
 set -euo pipefail
 
 readonly REPO_RUNFILES_ROOT="${TEST_SRCDIR}/_main"
-readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_doctor"
-readonly INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_install"
-readonly EXTRA_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_extra_install"
-readonly START_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile"
-readonly CLAUDE_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/claude_profile_install"
-readonly CLAUDE_START_BIN="${REPO_RUNFILES_ROOT}/examples/claude_profile"
-readonly CLAUDE_MANAGED_DIR="__bazel_agent_env__claude_profile__main__examples__repo_helper"
-readonly EXTRA_HELLO_WORLD_DIR="__bazel_agent_env__dev_profile_extra__main__examples__hello_world"
-readonly EXTRA_MANAGED_DIR="__bazel_agent_env__dev_profile_extra__main__examples__repo_helper"
+readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_doctor"
+readonly INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_setup"
+readonly EXTRA_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_extra_setup"
+readonly START_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev"
+readonly CLAUDE_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_setup"
+readonly CLAUDE_START_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev"
+readonly CLAUDE_MANAGED_DIR="__bazel_agent_env__claude_dev_profile__main__examples__repo_helper"
+readonly EXTRA_HELLO_WORLD_DIR="__bazel_agent_env__repo_dev_profile_extra__main__examples__hello_world"
+readonly EXTRA_MANAGED_DIR="__bazel_agent_env__repo_dev_profile_extra__main__examples__repo_helper"
 readonly FAKE_CODEX_SRC="${REPO_RUNFILES_ROOT}/examples/fake_codex.sh"
 readonly FAKE_CLAUDE_SRC="${REPO_RUNFILES_ROOT}/examples/fake_claude.sh"
-readonly MANAGED_DIR="__bazel_agent_env__dev_profile__main__examples__repo_helper"
+readonly MANAGED_DIR="__bazel_agent_env__repo_dev_profile__main__examples__repo_helper"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -67,7 +67,7 @@ main() {
 
   assert_file "${install_workspace}/.agents/skills/${MANAGED_DIR}/SKILL.md"
   assert_file "${install_workspace}/.agents/skills/${MANAGED_DIR}/.bazel_agent_env_owner.json"
-  assert_file "${install_workspace}/.agents/skills/.bazel_agent_env_dev_profile.json"
+  assert_file "${install_workspace}/.agents/skills/.bazel_agent_env_repo_dev_profile.json"
 
   (
     export OPENAI_API_KEY=test
@@ -98,7 +98,7 @@ main() {
     run_with_workspace "$install_workspace" "$INSTALL_BIN"
   ) >/dev/null
 
-  local stale_dir="${install_workspace}/.agents/skills/__bazel_agent_env__dev_profile__stale_case"
+  local stale_dir="${install_workspace}/.agents/skills/__bazel_agent_env__repo_dev_profile__stale_case"
   mkdir -p "$stale_dir"
   cat > "${stale_dir}/SKILL.md" <<'EOF'
 # stale
@@ -106,21 +106,21 @@ EOF
   cat > "${stale_dir}/.bazel_agent_env_owner.json" <<'EOF'
 {
   "agent": "codex",
-  "managed_dir_name": "__bazel_agent_env__dev_profile__stale_case",
-  "profile_name": "dev_profile",
+  "managed_dir_name": "__bazel_agent_env__repo_dev_profile__stale_case",
+  "profile_name": "repo_dev_profile",
   "tool": "rules_agents",
   "tool_version": "0.1.0"
 }
 EOF
-  cat > "${install_workspace}/.agents/skills/.bazel_agent_env_dev_profile.json" <<EOF
+  cat > "${install_workspace}/.agents/skills/.bazel_agent_env_repo_dev_profile.json" <<EOF
 {
   "agent": "codex",
   "installed_managed_dirs": [
     "${MANAGED_DIR}",
-    "__bazel_agent_env__dev_profile__stale_case"
+    "__bazel_agent_env__repo_dev_profile__stale_case"
   ],
   "install_timestamp": "2025-01-01T00:00:00+00:00",
-  "profile_name": "dev_profile",
+  "profile_name": "repo_dev_profile",
   "tool_version": "0.1.0"
 }
 EOF
@@ -131,7 +131,7 @@ EOF
   ) >/dev/null
   [[ ! -e "$stale_dir" ]] || fail "stale managed directory was not removed"
 
-  local prefix_only_dir="${install_workspace}/.agents/skills/__bazel_agent_env__dev_profile__prefix_only"
+  local prefix_only_dir="${install_workspace}/.agents/skills/__bazel_agent_env__repo_dev_profile__prefix_only"
   mkdir -p "$prefix_only_dir"
   cat > "${prefix_only_dir}/SKILL.md" <<'EOF'
 # unmanaged prefix
@@ -139,21 +139,21 @@ EOF
   cat > "${prefix_only_dir}/.bazel_agent_env_owner.json" <<'EOF'
 {
   "agent": "codex",
-  "managed_dir_name": "__bazel_agent_env__dev_profile__different_name",
-  "profile_name": "dev_profile",
+  "managed_dir_name": "__bazel_agent_env__repo_dev_profile__different_name",
+  "profile_name": "repo_dev_profile",
   "tool": "rules_agents",
   "tool_version": "0.1.0"
 }
 EOF
-  cat > "${install_workspace}/.agents/skills/.bazel_agent_env_dev_profile.json" <<EOF
+  cat > "${install_workspace}/.agents/skills/.bazel_agent_env_repo_dev_profile.json" <<EOF
 {
   "agent": "codex",
   "installed_managed_dirs": [
     "${MANAGED_DIR}",
-    "__bazel_agent_env__dev_profile__prefix_only"
+    "__bazel_agent_env__repo_dev_profile__prefix_only"
   ],
   "install_timestamp": "2025-01-01T00:00:00+00:00",
-  "profile_name": "dev_profile",
+  "profile_name": "repo_dev_profile",
   "tool_version": "0.1.0"
 }
 EOF
@@ -185,7 +185,7 @@ EOF
 
   assert_file "${claude_workspace}/.claude/skills/${CLAUDE_MANAGED_DIR}/SKILL.md"
   assert_file "${claude_workspace}/.claude/skills/${CLAUDE_MANAGED_DIR}/.bazel_agent_env_owner.json"
-  assert_file "${claude_workspace}/.claude/skills/.bazel_agent_env_claude_profile.json"
+  assert_file "${claude_workspace}/.claude/skills/.bazel_agent_env_claude_dev_profile.json"
 
   make_workspace "$start_workspace"
   mkdir -p "$path_shadow_dir"

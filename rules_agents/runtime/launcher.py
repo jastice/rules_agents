@@ -43,7 +43,7 @@ AGENT_ADAPTERS = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog="rules_agents_launcher")
-    parser.add_argument("command", choices=("doctor", "install", "start"))
+    parser.add_argument("command", choices=("doctor", "install", "run", "setup", "start"))
     parser.add_argument("manifest_path", help="Absolute path or Bazel runfiles path to the profile manifest")
     parser.add_argument("extra_args", nargs=argparse.REMAINDER)
     return parser.parse_args()
@@ -491,9 +491,9 @@ def main() -> int:
 
     if args.command == "doctor":
         return print_doctor(manifest, runfiles)
-    if args.command == "install":
+    if args.command in ("install", "setup"):
         return run_install(manifest, runfiles)
-    if args.command == "start":
+    if args.command in ("run", "start"):
         return run_start(manifest, runfiles, args.extra_args)
 
     fail(f"{args.command} is not implemented yet")

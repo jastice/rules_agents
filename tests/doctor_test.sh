@@ -3,7 +3,7 @@
 set -euo pipefail
 
 readonly REPO_RUNFILES_ROOT="${TEST_SRCDIR}/_main"
-readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_doctor"
+readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_doctor"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -35,7 +35,7 @@ main() {
     run_doctor "$workspace_dir"
   ) >"$output_file"
 
-  grep -q "profile: dev_profile" "$output_file" || fail "doctor omitted profile"
+  grep -q "profile: repo_dev_profile" "$output_file" || fail "doctor omitted profile"
   grep -q "agent_binary: found" "$output_file" || fail "doctor did not find binary"
   grep -q "OPENAI_API_KEY: set" "$output_file" || fail "doctor did not report credential"
   grep -q "status=ok" "$output_file" || fail "doctor did not validate skill bundle"

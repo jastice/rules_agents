@@ -2,30 +2,30 @@ package(default_visibility = ["//visibility:public"])
 
 alias(
     name = "dev",
-    actual = "//examples:dev_profile",
+    actual = "//examples:codex_dev",
 )
 
 alias(
     name = "dev_doctor",
-    actual = "//examples:dev_profile_doctor",
+    actual = "//examples:codex_dev_doctor",
 )
 
 alias(
     name = "dev_manifest",
-    actual = "//examples:dev_profile_manifest",
+    actual = "//examples:repo_dev_profile_manifest",
 )
 
 alias(
     name = "claude_dev",
-    actual = "//examples:claude_profile",
+    actual = "//examples:claude_dev",
 )
 
 alias(
     name = "claude_dev_doctor",
-    actual = "//examples:claude_profile_doctor",
+    actual = "//examples:claude_dev_doctor",
 )
 
 alias(
     name = "claude_dev_manifest",
-    actual = "//examples:claude_profile_manifest",
+    actual = "//examples:claude_dev_profile_manifest",
 )

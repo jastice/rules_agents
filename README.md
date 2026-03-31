@@ -12,9 +12,10 @@ bazel run //agent:dev
 From the repository's point of view, that command should:
 
 1. choose a supported agent client: `codex` or `claude_code`
-2. install the repo's declared skills into the agent's native project-local skill directory
-3. validate required credential environment variables
-4. launch the selected agent from the repository root
+2. build the repo's declared profile artifact
+3. set up the selected runner's repo-local state
+4. validate required credential environment variables
+5. launch the selected agent from the repository root
 
 This is deliberately narrow. It is not a general AI framework, global config manager, or
 agent installer. It is a repo-owned launcher and skill installer.
@@ -36,7 +37,7 @@ That keeps agent setup repo-scoped, shareable, and boring in the right way.
 - local skills declared from files already in the repo
 - remote skills synthesized from git archive downloads
 - installation into the agent's native project-local skill directories
-- `doctor`, `manifest`, and `start` behavior for a declared profile
+- `doctor`, `manifest`, `setup`, and `run` behavior for declared profiles and runners
 
 ## What you need
 
@@ -53,7 +54,8 @@ secrets beyond validating and forwarding declared env vars.
 ## Mental Model
 
 - `agent_skill`: one portable skill bundle rooted at a `SKILL.md`
-- `agent_profile`: one runnable local agent environment
+- `agent_profile`: one buildable local profile artifact
+- `agent_runner`: one runtime realization of a profile
 - `skill_deps`: one module extension for bringing in remote skill archives
 
 For the supported agents, managed skills are intended to be installed under:
@@ -73,7 +75,7 @@ For the smallest local-only setup, a repo only needs a local skill and one profi
 In a BUILD file:
 
 ```python
-load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_skill")
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
 
 agent_skill(
     name = "repo_helper",
@@ -82,16 +84,21 @@ agent_skill(
 )
 
 agent_profile(
-    name = "dev",
-    agent = "codex",
+    name = "repo_dev_profile",
     skills = [
         ":repo_helper",
     ],
     credential_env = ["OPENAI_API_KEY"],
 )
+
+agent_runner(
+    name = "codex_dev",
+    runner = "codex",
+    profile = ":repo_dev_profile",
+)
 ```
 
-That gives the repo a single local profile with no remote skill dependencies.
+That gives the repo one buildable profile artifact plus one runnable Codex runner.
 
 If the repo also wants to reuse skills published from another repository, add a module
 extension entry in `MODULE.bazel`:
@@ -121,7 +128,7 @@ use_repo(skill_deps, "community_skills")
 In a BUILD file, declare one local skill and one profile:
 
 ```python
-load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_skill")
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
 
 agent_skill(
     name = "bazel_debug_skill",
@@ -130,44 +137,52 @@ agent_skill(
 )
 
 agent_profile(
-    name = "dev",
-    agent = "codex",
+    name = "repo_dev_profile",
     skills = [
         ":bazel_debug_skill",
         "@community_skills//:test_runner",
     ],
     credential_env = ["OPENAI_API_KEY"],
 )
+
+agent_runner(
+    name = "codex_dev",
+    runner = "codex",
+    profile = ":repo_dev_profile",
+)
 ```
 
 Then the intended user commands are:
 
 ```bash
-bazel run //agent:dev_doctor
-bazel run //agent:dev
-bazel run //agent:dev -- --help
+bazel build //agent:repo_dev_profile
+bazel run //agent:codex_dev_doctor
+bazel run //agent:codex_dev_setup
+bazel run //agent:codex_dev
+bazel run //agent:codex_dev -- --help
 ```
 
 ## Public API
 
-The intended v1 public API stays deliberately small:
+The public API stays deliberately small:
 
 - `agent_skill`
 - `agent_profile`
+- `agent_runner`
 - `skill_deps`
 
+The legacy runnable `agent_profile(agent = ...)` form is still supported as compatibility sugar.
 The product and architecture source of truth for the implemented v1 slice is `spec/v1.md`.
-Forward-looking design work lives under `spec/`, including `spec/profile_runner.md`.
+The profile/runner split is described in `spec/profile_runner.md`.
 
-## Proposed Target Model
+## Target Model
 
-The current implementation still follows the v1 `agent_profile` behavior in `spec/v1.md`.
-The draft direction in `spec/profile_runner.md` proposes a clearer target split:
+The implemented profile/runner split is:
 
 - `agent_profile`: a buildable profile artifact target
 - `agent_runner`: a runtime target that sets up and runs a concrete client or wrapper
 
-One example target flow in that draft is:
+One example target flow is:
 
 ```bash
 bazel build //agent:repo_dev_profile
@@ -197,15 +212,17 @@ In that proposed model, for example:
 - `//...:codex_dev` aliases the default interactive entrypoint
 - `//...:claude_dev_setup` and `//...:claude_dev_run` follow the same pattern for another runner
 
-This is not implemented behavior yet; it is the current design direction under review.
+The older runnable `agent_profile(agent = ...)` form still exists for compatibility, but new
+examples and targets use the split model above.
 
 ## Current Status
 
-The v1 slice described in `spec/v1.md` is implemented:
+The current implementation provides:
 
 - `agent_skill` packages local skill bundles and validates bundle shape
-- `agent_profile` generates `:name`, `:name_doctor`, and `:name_manifest`
-- the runtime launcher supports `doctor`, `install`, and `start`
+- `agent_profile` builds `:name` and `:name_manifest` profile artifacts
+- `agent_runner` generates `:name`, `:name_setup`, `:name_run`, `:name_doctor`, and `:name_manifest`
+- the runtime launcher supports `doctor`, `setup`, `run`, plus legacy `install` and `start`
 - managed installs land under `.agents/skills` for Codex and `.claude/skills` for Claude Code
 - `skill_deps.remote(...)` synthesizes remote `agent_skill` targets from archive contents
 - examples exist for both supported agents
@@ -218,11 +235,11 @@ Repository verification today:
 
 ## Example Targets
 
-- `//agent:dev`, `//agent:dev_doctor` alias the runnable Codex example profile targets
-- `//agent:dev_manifest` aliases the Codex manifest file target (use `bazel build`, not `bazel run`)
-- `//agent:claude_dev`, `//agent:claude_dev_doctor` alias the runnable Claude Code example profile targets
-- `//agent:claude_dev_manifest` aliases the Claude Code manifest file target (use `bazel build`, not `bazel run`)
-- `//examples:dev_profile_install` and `//examples:claude_profile_install` are example install-only wrappers used by tests
+- `//agent:dev`, `//agent:dev_doctor` alias the runnable Codex example runner targets
+- `//agent:dev_manifest` aliases the Codex example profile artifact target (use `bazel build`, not `bazel run`)
+- `//agent:claude_dev`, `//agent:claude_dev_doctor` alias the runnable Claude Code example runner targets
+- `//agent:claude_dev_manifest` aliases the Claude Code example profile artifact target (use `bazel build`, not `bazel run`)
+- `//examples:codex_dev_setup` and `//examples:claude_dev_setup` are example setup wrappers used by tests
 
 ## Repository Layout
 
