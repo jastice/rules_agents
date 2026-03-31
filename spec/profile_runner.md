@@ -110,7 +110,7 @@ Suggested shape:
 
 ```python
 agent_profile(
-    name = "repo_dev",
+    name = "repo_dev_profile",
     skills = [
         ":repo_helper",
         ":hello_world",
@@ -138,13 +138,13 @@ Suggested shape:
 agent_runner(
     name = "codex_dev",
     runner = "codex",
-    profile = ":repo_dev",
+    profile = ":repo_dev_profile",
 )
 
 agent_runner(
     name = "claude_dev",
     runner = "claude_code",
-    profile = ":repo_dev",
+    profile = ":repo_dev_profile",
 )
 ```
 
@@ -218,7 +218,7 @@ Suggested schema v1 of this split:
 ```json
 {
   "version": 1,
-  "profile_name": "repo_dev",
+  "profile_name": "repo_dev_profile",
   "credential_env": ["OPENAI_API_KEY"],
   "skills": [
     {
@@ -384,7 +384,7 @@ agent_skill(
 )
 
 agent_profile(
-    name = "repo_dev",
+    name = "repo_dev_profile",
     skills = [
         ":repo_helper",
     ],
@@ -397,13 +397,13 @@ agent_profile(
 agent_runner(
     name = "codex_dev",
     runner = "codex",
-    profile = ":repo_dev",
+    profile = ":repo_dev_profile",
 )
 
 agent_runner(
     name = "claude_dev",
     runner = "claude_code",
-    profile = ":repo_dev",
+    profile = ":repo_dev_profile",
 )
 ```
 
@@ -413,7 +413,7 @@ agent_runner(
 agent_runner(
     name = "air_dev",
     runner = "air",
-    profile = ":repo_dev",
+    profile = ":repo_dev_profile",
 )
 ```
 
@@ -422,7 +422,7 @@ The profile remains stable while the runtime binding changes.
 ### 12.3 Target flow example
 
 ```bash
-bazel build //agent:repo_dev
+bazel build //agent:repo_dev_profile
 bazel run //agent:codex_dev_setup
 bazel run //agent:codex_dev_run
 ```

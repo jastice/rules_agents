@@ -170,7 +170,7 @@ The draft direction in `spec/profile_runner.md` proposes a clearer target split:
 The intended target flow in that draft is:
 
 ```bash
-bazel build //agent:repo_dev
+bazel build //agent:repo_dev_profile
 bazel run //agent:codex_dev_setup
 bazel run //agent:codex_dev_run
 ```
@@ -183,10 +183,10 @@ Meaning:
 
 In that proposed model:
 
-- `//...:profile_name` builds the profile artifact
-- `//...:runner_name_setup` realizes the profile for a concrete runner
-- `//...:runner_name_run` launches or attaches to the runner frontend
-- `//...:runner_name` aliases the default interactive entrypoint
+- `//...:repo_dev_profile` builds the profile artifact
+- `//...:codex_dev_setup` realizes the profile for a concrete runner
+- `//...:codex_dev_run` launches or attaches to the runner frontend
+- `//...:codex_dev` aliases the default interactive entrypoint
 
 This is not implemented behavior yet; it is the current design direction under review.
 
