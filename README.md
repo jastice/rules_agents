@@ -70,7 +70,7 @@ For the smallest local-only setup, a repo only needs a local skill and one profi
 In a BUILD file:
 
 ```python
-load("@agent_env//:defs.bzl", "agent_profile", "agent_skill")
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_skill")
 
 agent_skill(
     name = "repo_helper",
@@ -93,18 +93,18 @@ That gives the repo a single local profile with no remote skill dependencies.
 If the repo also wants to reuse skills published from another repository, add a module
 extension entry in `MODULE.bazel`:
 
-In `MODULE.bazel`, bring in `agent_env` and any remote skill repos:
+In `MODULE.bazel`, bring in `rules_agents` and any remote skill repos:
 
 ```python
-bazel_dep(name = "agent_env")
+bazel_dep(name = "rules_agents")
 
 archive_override(
-    module_name = "agent_env",
-    urls = ["https://github.com/you/agent_env/archive/COMMIT.tar.gz"],
-    strip_prefix = "agent_env-COMMIT",
+    module_name = "rules_agents",
+    urls = ["https://github.com/you/rules_agents/archive/COMMIT.tar.gz"],
+    strip_prefix = "rules_agents-COMMIT",
 )
 
-skill_deps = use_extension("@agent_env//:extensions.bzl", "skill_deps")
+skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 
 skill_deps.remote(
     name = "community_skills",
@@ -118,7 +118,7 @@ use_repo(skill_deps, "community_skills")
 In a BUILD file, declare one local skill and one profile:
 
 ```python
-load("@agent_env//:defs.bzl", "agent_profile", "agent_skill")
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_skill")
 
 agent_skill(
     name = "bazel_debug_skill",
@@ -174,8 +174,10 @@ Repository verification today:
 
 ## Example Targets
 
-- `//agent:dev`, `//agent:dev_doctor`, `//agent:dev_manifest` alias the Codex example profile
-- `//agent:claude_dev`, `//agent:claude_dev_doctor`, `//agent:claude_dev_manifest` alias the Claude Code example profile
+- `//agent:dev`, `//agent:dev_doctor` alias the runnable Codex example profile targets
+- `//agent:dev_manifest` aliases the Codex manifest file target (use `bazel build`, not `bazel run`)
+- `//agent:claude_dev`, `//agent:claude_dev_doctor` alias the runnable Claude Code example profile targets
+- `//agent:claude_dev_manifest` aliases the Claude Code manifest file target (use `bazel build`, not `bazel run`)
 - `//examples:dev_profile_install` and `//examples:claude_profile_install` are example install-only wrappers used by tests
 
 ## Repository Layout

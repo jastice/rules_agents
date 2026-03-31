@@ -119,17 +119,17 @@ This is acceptable in v1. The tool should manage only its own generated subdirec
 
 Use a small surface area.
 
-### 7.0 Bootstrapping `agent_env` itself
+### 7.0 Bootstrapping `rules_agents` itself
 
-`agent_env` is not on BCR in v1. Consumers pull it directly via a MODULE.bazel override:
+`rules_agents` is not on BCR in v1. Consumers pull it directly via a MODULE.bazel override:
 
 ```python
-bazel_dep(name = "agent_env")
+bazel_dep(name = "rules_agents")
 archive_override(
-    module_name = "agent_env",
-    urls = ["https://github.com/you/agent_env/archive/COMMIT.tar.gz"],
+    module_name = "rules_agents",
+    urls = ["https://github.com/you/rules_agents/archive/COMMIT.tar.gz"],
 
-    strip_prefix = "agent_env-COMMIT",
+    strip_prefix = "rules_agents-COMMIT",
 )
 ```
 
@@ -137,8 +137,8 @@ Or via git:
 
 ```python
 git_override(
-    module_name = "agent_env",
-    remote = "https://github.com/you/agent_env",
+    module_name = "rules_agents",
+    remote = "https://github.com/you/rules_agents",
     commit = "...",
 )
 ```
@@ -201,7 +201,7 @@ Generated targets:
 
 - within the package that calls `agent_profile(name = "dev", ...)`, generate `:dev` — install + start
 - within the package that calls `agent_profile(name = "dev", ...)`, generate `:dev_doctor` — validate without launching
-- within the package that calls `agent_profile(name = "dev", ...)`, generate `:dev_manifest` — machine-readable manifest artifact
+- within the package that calls `agent_profile(name = "dev", ...)`, generate `:dev_manifest` — machine-readable manifest file target (use `bazel build`, not `bazel run`)
 
 `//agent:dev` is only an example label for a profile declared in package `//agent`.
 
@@ -215,10 +215,10 @@ Declared in the consumer's `MODULE.bazel`. Resolves remote skill archives by URL
 
 ```python
 # MODULE.bazel
-bazel_dep(name = "agent_env")
-# ... override for agent_env itself (see 7.0) ...
+bazel_dep(name = "rules_agents")
+# ... override for rules_agents itself (see 7.0) ...
 
-skill_deps = use_extension("@agent_env//:extensions.bzl", "skill_deps")
+skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.remote(
     name = "community_skills",
     url = "https://github.com/org/bazel-skills/archive/abc123def456.tar.gz",
@@ -237,6 +237,8 @@ Synthesized targets are named after the skill directory:
 
 ```python
 # after the above, in any BUILD file:
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_skill")
+
 agent_profile(
     skills = [
         ":local_skill",
@@ -561,7 +563,7 @@ Implement in this order.
 Create the skeleton:
 
 ```text
-agent_env/
+rules_agents/
   defs.bzl
   private/
     skill_rule.bzl
@@ -716,15 +718,15 @@ Acceptance criteria:
 ### MODULE.bazel
 
 ```python
-bazel_dep(name = "agent_env")
+bazel_dep(name = "rules_agents")
 archive_override(
-    module_name = "agent_env",
-    urls = ["https://github.com/you/agent_env/archive/COMMIT.tar.gz"],
+    module_name = "rules_agents",
+    urls = ["https://github.com/you/rules_agents/archive/COMMIT.tar.gz"],
 
-    strip_prefix = "agent_env-COMMIT",
+    strip_prefix = "rules_agents-COMMIT",
 )
 
-skill_deps = use_extension("@agent_env//:extensions.bzl", "skill_deps")
+skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.remote(
     name = "community_skills",
     url = "https://github.com/org/bazel-skills/archive/abc123.tar.gz",
@@ -737,7 +739,7 @@ use_repo(skill_deps, "community_skills")
 ### BUILD file
 
 ```python
-load("@agent_env//:defs.bzl", "agent_profile", "agent_skill")
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_skill")
 
 agent_skill(
     name = "bazel_debug_skill",
