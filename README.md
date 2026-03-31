@@ -156,11 +156,12 @@ The intended v1 public API stays deliberately small:
 - `agent_profile`
 - `skill_deps`
 
-The product and architecture source of truth is `rules_agents spec.md`.
+The product and architecture source of truth for the implemented v1 slice is `spec/v1.md`.
+Forward-looking design work lives under `spec/`, including `spec/profile_runner.md`.
 
 ## Current Status
 
-The v1 slice described in `rules_agents spec.md` is implemented:
+The v1 slice described in `spec/v1.md` is implemented:
 
 - `agent_skill` packages local skill bundles and validates bundle shape
 - `agent_profile` generates `:name`, `:name_doctor`, and `:name_manifest`
@@ -193,4 +194,6 @@ Repository verification today:
 - `rules_agents/`: public Starlark surface
 - `rules_agents/private/`: internal implementation
 - `rules_agents/runtime/`: runtime launcher implementation
-- `rules_agents spec.md`: product spec and implementation plan
+- `spec/`: product and design specs
+- `spec/v1.md`: v1 product spec and implementation plan
+- `spec/profile_runner.md`: draft proposal for splitting profile declaration from runner realization

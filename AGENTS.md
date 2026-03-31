@@ -1,6 +1,7 @@
 This file applies to the entire repository.
-- The repository currently centers on the product spec in `rules_agents spec.md`.
-- Treat that spec as the source of truth unless the user explicitly overrides it.
+- The repository currently centers on the v1 product spec in `spec/v1.md`.
+- Treat `spec/v1.md` as the source of truth for implemented behavior unless the user explicitly overrides it.
+- Design proposals under `spec/` may extend or challenge the v1 model, but they are not implemented truth unless the user asks to adopt them.
 - If implementation work begins, read the relevant spec sections before making structural decisions.
 Build a small Bazel-based system that lets a repository declare a local coding-agent environment and launch it with one command.
 The v1 contract is intentionally narrow:
@@ -14,7 +15,7 @@ Do:
 - use project-local native skill directories
 - keep the public API small: `agent_skill`, `agent_profile`, and `skill_deps`
 - preserve the distinction between packaging, manifest generation, installation, launch, and agent-specific adapters
-- follow the implementation order in section 14 of `rules_agents spec.md` when possible
+- follow the implementation order in section 14 of `spec/v1.md` when possible
 - keep generated file ownership limited to tool-managed subdirectories
 Do not:
 - build a general agent framework
