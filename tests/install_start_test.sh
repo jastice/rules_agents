@@ -5,10 +5,13 @@ set -euo pipefail
 readonly REPO_RUNFILES_ROOT="${TEST_SRCDIR}/_main"
 readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_doctor"
 readonly INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_install"
+readonly EXTRA_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile_extra_install"
 readonly START_BIN="${REPO_RUNFILES_ROOT}/examples/dev_profile"
 readonly CLAUDE_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/claude_profile_install"
 readonly CLAUDE_START_BIN="${REPO_RUNFILES_ROOT}/examples/claude_profile"
 readonly CLAUDE_MANAGED_DIR="__bazel_agent_env__claude_profile__main__examples__repo_helper"
+readonly EXTRA_HELLO_WORLD_DIR="__bazel_agent_env__dev_profile_extra__main__examples__hello_world"
+readonly EXTRA_MANAGED_DIR="__bazel_agent_env__dev_profile_extra__main__examples__repo_helper"
 readonly FAKE_CODEX_SRC="${REPO_RUNFILES_ROOT}/examples/fake_codex.sh"
 readonly FAKE_CLAUDE_SRC="${REPO_RUNFILES_ROOT}/examples/fake_claude.sh"
 readonly MANAGED_DIR="__bazel_agent_env__dev_profile__main__examples__repo_helper"
@@ -65,6 +68,29 @@ main() {
   assert_file "${install_workspace}/.agents/skills/${MANAGED_DIR}/SKILL.md"
   assert_file "${install_workspace}/.agents/skills/${MANAGED_DIR}/.bazel_agent_env_owner.json"
   assert_file "${install_workspace}/.agents/skills/.bazel_agent_env_dev_profile.json"
+
+  (
+    export OPENAI_API_KEY=test
+    export CODEX_BIN=/usr/bin/true
+    run_with_workspace "$install_workspace" "$EXTRA_INSTALL_BIN"
+  ) >/dev/null
+
+  assert_file "${install_workspace}/.agents/skills/${EXTRA_MANAGED_DIR}/SKILL.md"
+  assert_file "${install_workspace}/.agents/skills/${EXTRA_HELLO_WORLD_DIR}/SKILL.md"
+  [[ ! -e "${install_workspace}/.agents/skills/${MANAGED_DIR}" ]] || \
+    fail "previous profile skill remained after switching profiles"
+
+  (
+    export OPENAI_API_KEY=test
+    export CODEX_BIN=/usr/bin/true
+    run_with_workspace "$install_workspace" "$INSTALL_BIN"
+  ) >/dev/null
+
+  assert_file "${install_workspace}/.agents/skills/${MANAGED_DIR}/SKILL.md"
+  [[ ! -e "${install_workspace}/.agents/skills/${EXTRA_MANAGED_DIR}" ]] || \
+    fail "extra profile repo_helper remained after switching back"
+  [[ ! -e "${install_workspace}/.agents/skills/${EXTRA_HELLO_WORLD_DIR}" ]] || \
+    fail "extra profile hello_world remained after switching back"
 
   (
     export OPENAI_API_KEY=test

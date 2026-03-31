@@ -187,32 +187,100 @@ def read_owner_marker(path: Path) -> dict | None:
 
 
 def marker_matches(manifest: dict, managed_dir_name: str, marker: dict | None) -> bool:
+    return marker_matches_values(
+        agent=manifest["agent"],
+        profile_name=manifest["profile_name"],
+        managed_dir_name=managed_dir_name,
+        marker=marker,
+    )
+
+
+def marker_matches_values(
+    *,
+    agent: str,
+    profile_name: str,
+    managed_dir_name: str,
+    marker: dict | None,
+) -> bool:
     if marker is None:
         return False
     return (
         marker.get("tool") == "rules_agents"
-        and marker.get("agent") == manifest["agent"]
-        and marker.get("profile_name") == manifest["profile_name"]
+        and marker.get("agent") == agent
+        and marker.get("profile_name") == profile_name
         and marker.get("managed_dir_name") == managed_dir_name
     )
 
 
 def is_owned_destination(manifest: dict, previous_cleanup: dict | None, path: Path) -> bool:
+    return is_owned_destination_for_profile(
+        agent=manifest["agent"],
+        profile_name=manifest["profile_name"],
+        previous_cleanup=previous_cleanup,
+        path=path,
+    )
+
+
+def is_owned_destination_for_profile(
+    *,
+    agent: str,
+    profile_name: str,
+    previous_cleanup: dict | None,
+    path: Path,
+) -> bool:
     managed_dir_name = path.name
     if previous_cleanup is None:
         return False
-    if previous_cleanup.get("agent") != manifest["agent"]:
+    if previous_cleanup.get("agent") != agent:
         return False
-    if previous_cleanup.get("profile_name") != manifest["profile_name"]:
+    if previous_cleanup.get("profile_name") != profile_name:
         return False
     installed = previous_cleanup.get("installed_managed_dirs", [])
     if managed_dir_name not in installed:
         return False
-    return marker_matches(manifest, managed_dir_name, read_owner_marker(path))
+    return marker_matches_values(
+        agent=agent,
+        profile_name=profile_name,
+        managed_dir_name=managed_dir_name,
+        marker=read_owner_marker(path),
+    )
 
 
 def write_owner_marker(path: Path, manifest: dict, managed_dir_name: str) -> None:
     write_json_file(path / OWNER_MARKER_NAME, owner_marker_contents(manifest, managed_dir_name))
+
+
+def remove_inactive_profile_dirs(
+    skill_root: Path,
+    manifest: dict,
+    installed_managed_dirs: list[str],
+) -> list[str]:
+    removed_dirs = []
+    current_cleanup_path = cleanup_manifest_path(skill_root, manifest["profile_name"])
+    for cleanup_path in skill_root.glob(f"{CLEANUP_MANIFEST_PREFIX}*.json"):
+        if cleanup_path == current_cleanup_path:
+            continue
+        previous_cleanup = read_cleanup_manifest(cleanup_path)
+        if previous_cleanup is None:
+            continue
+        if previous_cleanup.get("agent") != manifest["agent"]:
+            continue
+        profile_name = previous_cleanup.get("profile_name")
+        if not isinstance(profile_name, str) or not profile_name:
+            continue
+        for managed_dir_name in previous_cleanup.get("installed_managed_dirs", []):
+            if managed_dir_name in installed_managed_dirs:
+                continue
+            candidate = skill_root / managed_dir_name
+            if candidate.exists() and is_owned_destination_for_profile(
+                agent=manifest["agent"],
+                profile_name=profile_name,
+                previous_cleanup=previous_cleanup,
+                path=candidate,
+            ):
+                shutil.rmtree(candidate)
+                removed_dirs.append(managed_dir_name)
+    return removed_dirs
 
 
 def stage_skill_bundle(skill_root: Path, manifest: dict, skill: dict, runfiles: Runfiles) -> Path:
@@ -279,6 +347,14 @@ def install_declared_skills(workspace_root: Path, manifest: dict, runfiles: Runf
                 if candidate.exists() and is_owned_destination(manifest, previous_cleanup, candidate):
                     shutil.rmtree(candidate)
                     stale_dirs.append(managed_dir_name)
+
+    stale_dirs.extend(
+        remove_inactive_profile_dirs(
+            skill_root=skill_root,
+            manifest=manifest,
+            installed_managed_dirs=installed_managed_dirs,
+        )
+    )
 
     cleanup_payload = {
         "agent": manifest["agent"],

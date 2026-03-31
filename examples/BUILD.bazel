@@ -9,6 +9,12 @@ agent_skill(
     srcs = glob(["skills/repo_helper/**"], exclude_directories = 1),
 )
 
+agent_skill(
+    name = "hello_world",
+    root = "skills/hello_world",
+    srcs = glob(["skills/hello_world/**"], exclude_directories = 1),
+)
+
 agent_profile(
     name = "dev_profile",
     agent = "codex",
@@ -19,6 +25,22 @@ agent_profile(
 launcher_binary(
     name = "dev_profile_install",
     manifest = ":dev_profile_manifest",
+    subcommand = "install",
+)
+
+agent_profile(
+    name = "dev_profile_extra",
+    agent = "codex",
+    skills = [
+        ":repo_helper",
+        ":hello_world",
+    ],
+    credential_env = ["OPENAI_API_KEY"],
+)
+
+launcher_binary(
+    name = "dev_profile_extra_install",
+    manifest = ":dev_profile_extra_manifest",
     subcommand = "install",
 )
 

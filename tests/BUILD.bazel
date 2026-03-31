@@ -20,6 +20,7 @@ sh_test(
         "//examples:claude_profile_install",
         "//examples:dev_profile_doctor",
         "//examples:dev_profile_install",
+        "//examples:dev_profile_extra_install",
         "//examples:dev_profile",
         "//examples:fake_claude.sh",
         "//examples:fake_codex.sh",
