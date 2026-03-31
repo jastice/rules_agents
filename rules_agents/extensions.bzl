@@ -37,7 +37,7 @@ def _skill_root_from_path(path):
 
 def _is_nested_under(root, parent):
     if parent == ".":
-        return root != "."
+        return False
     return root.startswith(parent + "/")
 
 

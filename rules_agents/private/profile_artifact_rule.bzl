@@ -1,17 +1,13 @@
 """Private rule for buildable agent profile artifacts."""
 
 load(":providers.bzl", "AgentProfileInfo", "AgentSkillInfo")
-
-
-def _bundle_runfiles_path(ctx, bundle):
-    workspace_name = ctx.workspace_name or "_main"
-    return workspace_name + "/" + bundle.short_path
+load(":runfiles_path.bzl", "bundle_runfiles_path")
 
 
 def _skill_entry(ctx, skill):
     info = skill[AgentSkillInfo]
     return {
-        "bundle_runfiles_path": _bundle_runfiles_path(ctx, info.bundle_dir),
+        "bundle_runfiles_path": bundle_runfiles_path(ctx, info.bundle_dir),
         "logical_name": info.logical_name,
         "skill_id": info.skill_id,
     }

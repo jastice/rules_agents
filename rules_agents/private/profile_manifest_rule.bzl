@@ -1,6 +1,7 @@
 """Private manifest rule for agent profiles."""
 
 load(":providers.bzl", "AgentSkillInfo")
+load(":runfiles_path.bzl", "bundle_runfiles_path")
 
 _VALID_AGENTS = (
     "claude_code",
@@ -29,15 +30,10 @@ def _managed_dir_name(profile_name, skill_id):
     )
 
 
-def _bundle_runfiles_path(ctx, bundle):
-    workspace_name = ctx.workspace_name or "_main"
-    return workspace_name + "/" + bundle.short_path
-
-
 def _skill_entry(ctx, skill):
     info = skill[AgentSkillInfo]
     return {
-        "bundle_runfiles_path": _bundle_runfiles_path(ctx, info.bundle_dir),
+        "bundle_runfiles_path": bundle_runfiles_path(ctx, info.bundle_dir),
         "logical_name": info.logical_name,
         "managed_dir_name": _managed_dir_name(ctx.attr.profile_name, info.skill_id),
         "skill_id": info.skill_id,
