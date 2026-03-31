@@ -62,6 +62,9 @@ For the supported agents, managed skills are intended to be installed under:
 - `claude_code`: `<repo>/.claude/skills`
 
 The launcher manages only tool-owned subdirectories inside those native roots.
+Multiple `agent_profile` targets can coexist in Bazel, but installs are active per agent root:
+running one Codex profile replaces managed skills previously installed by another Codex profile,
+and likewise for Claude Code profiles.
 
 ## Minimal Setup
 
