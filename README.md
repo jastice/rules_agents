@@ -195,16 +195,16 @@ repos by itself and does not replace `skill_deps.remote(...)`.
 To list all skills from the active registries:
 
 ```bash
-bazel run @rules_agents//tools:list_skills
+bazel run @rules_agents_registry_index//:list_skills
 ```
 
 To filter the output:
 
 ```bash
-bazel run @rules_agents//tools:list_skills -- --agent=codex
-bazel run @rules_agents//tools:list_skills -- --registry=openai_skills
-bazel run @rules_agents//tools:list_skills -- --skill=python
-bazel run @rules_agents//tools:list_skills -- --json
+bazel run @rules_agents_registry_index//:list_skills -- --agent=codex
+bazel run @rules_agents_registry_index//:list_skills -- --registry=openai_skills
+bazel run @rules_agents_registry_index//:list_skills -- --skill=python
+bazel run @rules_agents_registry_index//:list_skills -- --json
 ```
 
 `--agent` filters at registry granularity. A registry is included when it declares support
@@ -230,7 +230,6 @@ skill_deps.remote(
     name = "openai_skills",
     url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
     strip_prefix = "skills-0123456789abcdef",
-    skill_path_prefix = "",
 )
 
 use_repo(skill_deps, "openai_skills")
@@ -301,8 +300,8 @@ Or for one registry:
 bazel run @rules_agents//tools:update_registries -- --registry=openai_skills --apply
 ```
 
-After the pin changes, rerun `bazel run @rules_agents//tools:list_skills` or your normal
-profile targets. Bazel handles cache invalidation and lockfile updates itself.
+After the pin changes, rerun `bazel run @rules_agents_registry_index//:list_skills` or your
+normal profile targets. Bazel handles cache invalidation and lockfile updates itself.
 
 `--apply` only rewrites repo-owned config in the current workspace, such as
 `tools/rules_agents/registries.json`. It does not modify the built-in registry catalog
