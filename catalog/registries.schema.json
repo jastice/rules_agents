@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rules-agents/rules_agents/catalog/registries.schema.json",
+  "title": "Registry Definitions",
+  "description": "Schema for rules_agents registry definition files.",
+  "type": "object",
+  "required": ["version", "registries"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "integer",
+      "const": 1,
+      "description": "Schema version."
+    },
+    "registries": {
+      "type": "array",
+      "description": "List of registry entries.",
+      "items": {
+        "type": "object",
+        "required": ["id", "homepage", "repo_url", "archive_url"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable registry identifier, unique within one file and within the merged config."
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Human-readable name used by listing output. Defaults to id."
+          },
+          "homepage": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Canonical documentation or repository page for the registry."
+          },
+          "repo_url": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Canonical repository URL used for rendering source links and update checks."
+          },
+          "archive_url": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact pinned archive URL used for fetch and discovery. Must not float."
+          },
+          "strip_prefix": {
+            "type": "string",
+            "default": "",
+            "description": "Optional extracted archive root to strip before skill discovery."
+          },
+          "default_branch": {
+            "type": "string",
+            "default": "main",
+            "description": "Optional branch name used only by the update tool when looking for newer upstream commits."
+          },
+          "agents": {
+            "type": "array",
+            "default": [],
+            "items": {
+              "type": "string",
+              "enum": ["codex", "claude_code"]
+            },
+            "description": "Subset of supported agents used for filtering."
+          },
+          "skill_path_prefix": {
+            "type": "string",
+            "default": "",
+            "description": "Optional relative path under the extracted archive root where skill discovery begins."
+          },
+          "description": {
+            "type": "string",
+            "default": "",
+            "description": "Short summary of the registry."
+          },
+          "link_format": {
+            "type": "string",
+            "enum": ["github_tree"],
+            "default": "github_tree",
+            "description": "Source-link rendering convention. v1 supports only github_tree."
+          }
+        }
+      }
+    }
+  }
+}
