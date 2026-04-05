@@ -162,6 +162,133 @@ bazel run //agent:codex_dev
 bazel run //agent:codex_dev -- --help
 ```
 
+## Skill Registry Workflow
+
+Once skill registry discovery is implemented, the expected user workflow is:
+
+1. enable registry discovery in `MODULE.bazel`
+2. list available skills from the configured registries
+3. copy the printed Bazel snippet for the skill you want
+4. add the synthesized skill target to an `agent_profile`
+5. optionally pin newer registry revisions with an explicit update command
+
+### 1. Enable built-in registries
+
+If you only want the registries that ship with `rules_agents`, add this to `MODULE.bazel`:
+
+```python
+skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
+
+skill_deps.registries()
+```
+
+That enables the built-in curated registries and lets Bazel cache registry resolution through
+its normal module-extension machinery.
+
+### 2. List available skills
+
+To list all skills from the active registries:
+
+```bash
+bazel run @rules_agents//tools:list_skills
+```
+
+To filter the output:
+
+```bash
+bazel run @rules_agents//tools:list_skills -- --agent=codex
+bazel run @rules_agents//tools:list_skills -- --registry=openai_skills
+bazel run @rules_agents//tools:list_skills -- --skill=python
+bazel run @rules_agents//tools:list_skills -- --json
+```
+
+For each discovered skill, the command prints:
+
+- the short description from `SKILL.md` frontmatter
+- a link to the full online skill source
+- the Bazel snippet needed to add that registry and the target label to reference
+
+### 3. Add a discovered skill
+
+Pick a skill from the listing output and copy the printed `MODULE.bazel` snippet.
+
+For example, if the listing shows `@openai_skills//:python`, add the generated remote repo
+declaration to `MODULE.bazel`:
+
+```python
+skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
+
+skill_deps.remote(
+    name = "openai_skills",
+    url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
+    strip_prefix = "skills-0123456789abcdef",
+)
+
+use_repo(skill_deps, "openai_skills")
+```
+
+Then reference the discovered skill target from your profile:
+
+```python
+agent_profile(
+    name = "repo_dev_profile",
+    skills = [
+        ":repo_helper",
+        "@openai_skills//:python",
+    ],
+    credential_env = ["OPENAI_API_KEY"],
+)
+```
+
+### 4. Add repo-specific registries or pin overrides
+
+If your repository needs additional registries or different pinned revisions, create
+`agent/registries.json` and tell `skill_deps` to use it.
+
+In `MODULE.bazel`:
+
+```python
+skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
+
+skill_deps.registries(
+    config = "//agent:registries.json",
+    mode = "extend",  # or "replace"
+)
+```
+
+Use `mode = "extend"` to add repo-specific registries on top of the built-ins. Use
+`mode = "replace"` if the repo wants to ignore the built-in curated set completely.
+
+### 5. Explicitly update registry pins
+
+Listing skills never changes registry pins. To check for newer upstream revisions, run the
+separate maintainer command:
+
+```bash
+bazel run @rules_agents//tools:update_registries
+```
+
+To check one registry only:
+
+```bash
+bazel run @rules_agents//tools:update_registries -- --registry=openai_skills
+```
+
+To apply the proposed pin updates to the repo-owned registry config:
+
+```bash
+bazel run @rules_agents//tools:update_registries -- --apply
+```
+
+Or for one registry:
+
+```bash
+bazel run @rules_agents//tools:update_registries -- --registry=openai_skills --apply
+```
+
+After the pin changes, rerun `bazel run @rules_agents//tools:list_skills` or your normal
+profile targets. Bazel handles cache invalidation and lockfile updates itself.
+
 ## Public API
 
 The public API stays deliberately small:
