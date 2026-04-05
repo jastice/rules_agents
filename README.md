@@ -185,6 +185,9 @@ skill_deps.registries()
 That enables the built-in curated registries and lets Bazel cache registry resolution through
 its normal module-extension machinery.
 
+`skill_deps.registries()` is for discovery only. It does not create usable external skill
+repos by itself and does not replace `skill_deps.remote(...)`.
+
 ### 2. List available skills
 
 To list all skills from the active registries:
@@ -240,6 +243,10 @@ agent_profile(
 )
 ```
 
+`skill_deps.registries(...)` and `skill_deps.remote(...)` can coexist in the same
+`MODULE.bazel`. The first lets you browse available skills. The second is what actually makes
+one remote skill repo usable from `agent_profile`.
+
 ### 4. Add repo-specific registries or pin overrides
 
 If your repository needs additional registries or different pinned revisions, create
@@ -289,6 +296,11 @@ bazel run @rules_agents//tools:update_registries -- --registry=openai_skills --a
 After the pin changes, rerun `bazel run @rules_agents//tools:list_skills` or your normal
 profile targets. Bazel handles cache invalidation and lockfile updates itself.
 
+`--apply` only rewrites repo-owned config in the current workspace, such as
+`agent/registries.json`. It does not modify the built-in registry catalog shipped inside the
+external `rules_agents` dependency. To pick up newer built-in registry pins, bump the
+`rules_agents` version your repository depends on.
+
 ## Public API
 
 The public API stays deliberately small:
@@ -298,8 +310,10 @@ The public API stays deliberately small:
 - `agent_runner`
 - `skill_deps`
 
-The legacy runnable `agent_profile(agent = ...)` form is still supported as compatibility sugar.
-The product and architecture source of truth for the implemented v1 slice is `spec/v1.md`.
+The project is still in PoC phase. The API and target shapes may change without backward
+compatibility guarantees.
+`spec/v1.md` is retained as background guidance and historical context.
+Current design work may extend or replace parts of it.
 The profile/runner split is described in `spec/profile_runner.md`.
 
 ## Target Model
@@ -339,9 +353,6 @@ In that proposed model, for example:
 - `//...:codex_dev` aliases the default interactive entrypoint
 - `//...:claude_dev_setup` and `//...:claude_dev_run` follow the same pattern for another runner
 
-The older runnable `agent_profile(agent = ...)` form still exists for compatibility, but new
-examples and targets use the split model above.
-
 ## Current Status
 
 The current implementation provides:
@@ -349,7 +360,7 @@ The current implementation provides:
 - `agent_skill` packages local skill bundles and validates bundle shape
 - `agent_profile` builds `:name` and `:name_manifest` profile artifacts
 - `agent_runner` generates `:name`, `:name_setup`, `:name_run`, `:name_doctor`, and `:name_manifest`
-- the runtime launcher supports `doctor`, `setup`, `run`, plus legacy `install` and `start`
+- the runtime launcher supports `doctor`, `setup`, `run`, `install`, and `start`
 - managed installs land under `.agents/skills` for Codex and `.claude/skills` for Claude Code
 - `skill_deps.remote(...)` synthesizes remote `agent_skill` targets from archive contents
 - examples exist for both supported agents
@@ -379,5 +390,5 @@ Repository verification today:
 - `rules_agents/private/`: internal implementation
 - `rules_agents/runtime/`: runtime launcher implementation
 - `spec/`: product and design specs
-- `spec/v1.md`: v1 product spec and implementation plan
+- `spec/v1.md`: historical v1 product spec and implementation plan
 - `spec/profile_runner.md`: draft proposal for splitting profile declaration from runner realization

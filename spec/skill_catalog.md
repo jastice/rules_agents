@@ -33,9 +33,15 @@ stable and checked in, but discover current skills from pinned registry contents
 
 ## 3. Design constraints
 
-This proposal must stay aligned with `spec/v1.md`:
+Public API context for this proposal:
 
-- keep the public Starlark API limited to `agent_skill`, `agent_profile`, and `skill_deps`
+- `agent_skill`
+- `agent_profile`
+- `agent_runner`
+- `skill_deps`
+
+Design constraints:
+
 - keep remote resolution based on explicit pinned archives
 - avoid a live online registry service
 - avoid hidden user-global configuration
@@ -113,7 +119,8 @@ Supported flags:
 - `--skill=<name>`
   - filter by discovered skill name
 - `--agent=codex|claude_code`
-  - filter by supported agent
+  - filter by supported agent at registry granularity; a registry is included if its
+    `agents` field contains the requested agent
 
 ## 7. Registry model
 
@@ -206,6 +213,10 @@ For built-in registries shipped by `rules_agents`, that maintainer workflow runs
 `rules_agents` repository itself. A consuming repository that relies only on built-in
 registries receives those updates by bumping its `rules_agents` version, or by adding a
 repo-level `agent/registries.json` override when it needs to move independently.
+
+A consuming repository must not expect `@rules_agents//tools:update_registries -- --apply`
+to rewrite the built-in `catalog/registries.json` inside the external `rules_agents`
+repository. `--apply` rewrites only repo-owned config files in the current workspace.
 
 ### 7.5 `registries.json` schema
 
@@ -394,7 +405,30 @@ Validation rules:
 Registry pins may be rewritten by a separate explicit maintainer workflow, but normal listing
 and install behavior must never rewrite them implicitly.
 
-### 8.4 Relationship to `MODULE.bazel.lock`
+### 8.4 Relationship between `registries()` and `remote()`
+
+`skill_deps.registries(...)` and `skill_deps.remote(...)` may coexist in the same
+`MODULE.bazel`.
+
+Their responsibilities are different:
+
+- `skill_deps.registries(...)`
+  - enables registry discovery from configured pinned registries
+  - does not make discovered skills directly usable in `agent_profile`
+  - does not synthesize implicit `remote()` entries
+- `skill_deps.remote(...)`
+  - declares one concrete remote skill archive as a usable external repo
+  - produces synthesized `agent_skill` targets that may be referenced from
+    `agent_profile`
+
+The intended user flow is:
+
+1. enable registry discovery with `skill_deps.registries(...)`
+2. inspect available skills with `@rules_agents//tools:list_skills`
+3. copy the printed `skill_deps.remote(...)` stanza for the registry you want
+4. add the synthesized target label to `agent_profile`
+
+### 8.5 Relationship to `MODULE.bazel.lock`
 
 `MODULE.bazel.lock` should be treated as Bazel-owned state, not as a custom user-facing API.
 
@@ -446,15 +480,36 @@ This should stay aligned with the existing `skill_deps` discovery convention.
 
 The discovery step should read the minimal frontmatter needed for listing.
 
+Supported frontmatter format in this proposal:
+
+- YAML frontmatter only
+- frontmatter must appear at the start of `SKILL.md`
+- opening delimiter: `---`
+- closing delimiter: `---`
+
+Example:
+
+```md
+---
+name: Python
+description: Python coding workflow skill.
+---
+
+# Python
+```
+
 Required extracted fields:
 
-- skill display name if present
-- short description or summary if present
+- `name`
+  - optional display name shown in listings
+- `description`
+  - optional short description shown in listings
 
 Fallback behavior:
 
-- if no usable description exists in frontmatter, report an empty description or a short
-  placeholder
+- if `name` is missing, use the discovered skill directory name
+- if `description` is missing, report an empty description or a short placeholder
+- if frontmatter is malformed, treat it as absent for listing purposes
 - frontmatter absence is not a validity failure for discovery if the skill otherwise has a
   valid `SKILL.md`
 
@@ -528,6 +583,22 @@ In v1, that means:
 - use `repo_url`
 - append `tree/<resolved_revision>/<skill_path>` where `skill_path` is the discovered skill
   path relative to the extracted archive root after `strip_prefix`
+
+### 11.1 `archive_url` to revision mapping
+
+For `link_format = "github_tree"`, the revision used for source links must be derived from
+`archive_url` using this supported shape:
+
+- `https://github.com/<owner>/<repo>/archive/<rev>.tar.gz`
+
+In this proposal, active registries must be commit-pinned. Therefore:
+
+- extract `<rev>` from `.../archive/<rev>.tar.gz`
+- require `<rev>` to satisfy the semantic validator for commit SHAs
+
+If `archive_url` does not match the supported commit-pinned GitHub archive shape, discovery
+may still proceed, but `source_url` must be omitted unless the implementation has another
+deterministic way to compute it from the configured `link_format`.
 
 ## 12. Bazel snippet generation
 

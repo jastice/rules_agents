@@ -477,17 +477,12 @@ Meaning:
 - `//...:dev_run` launches Codex using the realized repo-local state
 - `//...:dev` may alias `//...:dev_run`
 
-Possible compatibility strategies:
-
-1. keep current `agent_profile(agent = ...)` as sugar for one profile plus one runner
-2. add `agent_runner` and migrate examples first
-3. eventually make `agent_profile` runner-agnostic only
-
 Preferred direction:
 
 - introduce `agent_runner`
-- keep the old form only as a temporary compatibility shim if needed
 - move examples and docs to the split model early
+- allow breaking API and target-shape changes during the PoC instead of carrying compatibility
+  shims
 
 ## 14. Why this is better
 
@@ -505,8 +500,7 @@ Preferred direction:
    entirely adapter-defined?
 3. Should `:name` on an `agent_runner` always mean `run`, even when `run` is only an attach or
    wrapper entrypoint rather than a direct process launch?
-4. Should compatibility sugar from the current `agent_profile(agent = ...)` form exist at all?
-5. Should wrapper runners be allowed to consume multiple profiles, or is one profile per runner
+4. Should wrapper runners be allowed to consume multiple profiles, or is one profile per runner
    the right starting point?
 
 ## 16. Recommendation
