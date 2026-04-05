@@ -63,7 +63,7 @@ solver.
 ## 5. Non-goals
 
 - dynamic discovery from floating branches or tags
-- arbitrary network access from the final `bazel run` process
+- arbitrary network access from normal `list_skills` or install flows
 - scraping GitHub or vendor APIs directly at listing time
 - symbolic installation without a pinned archive URL
 - automatic mutation of the caller's `MODULE.bazel`
@@ -153,9 +153,9 @@ Two supported modes:
 
 This should be done with checked-in repo files, not user-global config.
 
-Suggested paths in the consuming repository:
+Suggested path in the consuming repository:
 
-- `agent/registries.json`
+- `tools/rules_agents/registries.json`
 
 If replacement is chosen, the repo-owned definitions become the complete registry set for
 that repository.
@@ -209,10 +209,12 @@ Suggested capabilities:
 The update command is a maintainer tool, not part of the ordinary end-user skill lookup
 flow.
 
+It is the explicit exception to the normal no-network rule for listing and install flows.
+
 For built-in registries shipped by `rules_agents`, that maintainer workflow runs in the
 `rules_agents` repository itself. A consuming repository that relies only on built-in
 registries receives those updates by bumping its `rules_agents` version, or by adding a
-repo-level `agent/registries.json` override when it needs to move independently.
+repo-level `tools/rules_agents/registries.json` override when it needs to move independently.
 
 A consuming repository must not expect `@rules_agents//tools:update_registries -- --apply`
 to rewrite the built-in `catalog/registries.json` inside the external `rules_agents`
@@ -307,6 +309,8 @@ Schema notes:
 - structural validation should be performed with JSON Schema
 - semantic validation that is awkward or non-portable in JSON Schema should be implemented in
   normal code after schema validation
+- `agents` applies at registry granularity, not per-skill granularity
+- registries that need precise mixed-agent filtering should be split by agent in this PoC
 
 Suggested semantic checks beyond JSON Schema:
 
@@ -320,7 +324,7 @@ Suggested semantic checks beyond JSON Schema:
 The merged active registry config is computed from:
 
 1. built-in `catalog/registries.json`
-2. optional repo-level `agent/registries.json`
+2. optional repo-level `tools/rules_agents/registries.json`
 3. the `mode` passed through `skill_deps.registries(...)`
 
 Merge rules:
@@ -352,7 +356,8 @@ version changes, when registry config inputs change, or when the discovery code 
 Suggested repo-owned inputs:
 
 - built-in registry definitions and default pins in `catalog/registries.json`
-- optional repo-level registry definitions and pin overrides in `agent/registries.json`
+- optional repo-level registry definitions and pin overrides in
+  `tools/rules_agents/registries.json`
 - a stable `MODULE.bazel` entry that enables registry discovery and points at the optional
   repo-level config file
 
@@ -366,11 +371,13 @@ The intended model is:
 1. registry definitions declare stable metadata such as homepage, supported agents, and URL
    rendering conventions
 2. built-in registry definitions provide a default curated registry set
-3. the consuming repository may optionally provide `agent/registries.json` to extend or
+3. the consuming repository may optionally provide `tools/rules_agents/registries.json` to extend or
    replace that set and override pins
 4. the existing `skill_deps` module extension consumes the merged registry config
 5. active registries are resolved to exact archive URLs from that merged config
 6. Bazel records module resolution and extension evaluation results in `MODULE.bazel.lock`
+7. the extension generates a discovery repo containing machine-readable registry manifests
+   consumed by `@rules_agents//tools:list_skills`
 
 Suggested extension shape:
 
@@ -381,9 +388,11 @@ skill_deps = use_extension(
 )
 
 skill_deps.registries(
-    config = "//agent:registries.json",  # optional
+    config = "//tools/rules_agents:registries.json",  # optional
     mode = "extend",  # or "replace"
 )
+
+use_repo(skill_deps, "rules_agents_registry_index")
 ```
 
 Field semantics:
@@ -393,6 +402,43 @@ Field semantics:
 - `mode`
   - whether repo-level config extends built-ins or replaces them
 
+Tag class contract:
+
+- `config`
+  - type: label
+  - required: no
+  - default: unset
+  - meaning: when unset, only built-in registries are active
+- `mode`
+  - type: string enum
+  - required: no
+  - default: `extend`
+  - allowed values: `extend`, `replace`
+
+Zero-argument form:
+
+```python
+skill_deps.registries()
+use_repo(skill_deps, "rules_agents_registry_index")
+```
+
+This means:
+
+- use built-in registries only
+- no repo-level override file
+- mode behaves as `extend`, though no override file is present
+
+Generated repo contract:
+
+- `skill_deps.registries(...)` must generate an external repo named
+  `rules_agents_registry_index`
+- that repo must expose:
+  - `@rules_agents_registry_index//:registry_manifests`
+    - filegroup or equivalent containing all per-registry manifests plus the aggregate
+      manifest
+  - `@rules_agents_registry_index//:aggregate_manifest.json`
+    - aggregate manifest consumed by `@rules_agents//tools:list_skills`
+
 Validation rules:
 
 - every active registry id in the merged config must resolve to one registry definition
@@ -401,6 +447,7 @@ Validation rules:
 - merged `archive_url` values must be pinned, not floating
 - repo-level registry config files read by the extension must be watched so changes
   invalidate extension evaluation cleanly
+- the generated repo name `rules_agents_registry_index` must be stable
 
 Registry pins may be rewritten by a separate explicit maintainer workflow, but normal listing
 and install behavior must never rewrite them implicitly.
@@ -427,6 +474,15 @@ The intended user flow is:
 2. inspect available skills with `@rules_agents//tools:list_skills`
 3. copy the printed `skill_deps.remote(...)` stanza for the registry you want
 4. add the synthesized target label to `agent_profile`
+
+To keep discovery and installation aligned, this proposal extends `skill_deps.remote(...)`
+with:
+
+- `skill_path_prefix`
+  - type: string
+  - required: no
+  - default: `""`
+  - meaning: relative path under the extracted archive root where skill synthesis begins
 
 ### 8.5 Relationship to `MODULE.bazel.lock`
 
@@ -458,12 +514,31 @@ The intended pipeline is:
 3. Bazel fetches or reuses those external repositories
 4. a Bazel action scans extracted contents for skill roots
 5. the action parses `SKILL.md` frontmatter and emits a machine-readable manifest
-6. `//tools:list_skills` reads those manifests and formats output
+6. the generated aggregate manifest is exposed from
+   `@rules_agents_registry_index//:aggregate_manifest.json`
+7. `@rules_agents//tools:list_skills` receives that aggregate manifest as a runfiles data
+   dependency and formats output from it
 
 Any repo-level registry config files consumed by the extension must be read in a way that
 causes Bazel to invalidate the extension when those files change.
 
 This is the correct way to take advantage of Bazel caching.
+
+### 9.1.1 Manifest dependency contract
+
+`@rules_agents//tools:list_skills` must locate discovery results through Bazel runfiles, not
+by scanning the workspace or external repo cache directly.
+
+Required contract:
+
+- `@rules_agents//tools:list_skills` has a data dependency on
+  `@rules_agents_registry_index//:aggregate_manifest.json`
+- the aggregate manifest is present in runfiles at runtime
+- the formatter reads only that aggregate manifest
+- per-registry manifests are intermediate artifacts and may be used to build the aggregate
+  manifest, but `list_skills` does not need to discover them dynamically
+- `@rules_agents//tools:list_skills` must remain publicly runnable from consuming
+  repositories that depend on `rules_agents`
 
 ### 9.2 Skill discovery rules
 
@@ -513,9 +588,79 @@ Fallback behavior:
 - frontmatter absence is not a validity failure for discovery if the skill otherwise has a
   valid `SKILL.md`
 
-## 10. Output behavior
+## 10. Manifest formats
 
-### 10.1 Human-readable output
+### 10.1 Per-registry manifest
+
+Each discovered registry must emit one JSON manifest with this schema:
+
+```json
+{
+  "version": 1,
+  "registry": {
+    "id": "openai_skills",
+    "display_name": "OpenAI Skills",
+    "homepage": "https://github.com/openai/skills",
+    "repo_url": "https://github.com/openai/skills",
+    "archive_url": "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
+    "strip_prefix": "skills-0123456789abcdef",
+    "skill_path_prefix": "",
+    "agents": ["codex"],
+    "description": "Curated Codex skills.",
+    "link_format": "github_tree"
+  },
+  "skills": [
+    {
+      "skill_name": "python",
+      "display_name": "Python",
+      "description": "Python coding workflow skill.",
+      "skill_path": "python",
+      "source_url": "https://github.com/openai/skills/tree/0123456789abcdef/python",
+      "target_label": "@openai_skills//:python"
+    }
+  ]
+}
+```
+
+### 10.2 Aggregate manifest
+
+The aggregate manifest consumed by `list_skills` must have this schema:
+
+```json
+{
+  "version": 1,
+  "registries": [
+    {
+      "id": "openai_skills",
+      "display_name": "OpenAI Skills",
+      "homepage": "https://github.com/openai/skills",
+      "repo_url": "https://github.com/openai/skills",
+      "archive_url": "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
+      "strip_prefix": "skills-0123456789abcdef",
+      "skill_path_prefix": "",
+      "agents": ["codex"],
+      "description": "Curated Codex skills.",
+      "link_format": "github_tree",
+      "skills": [
+        {
+          "skill_name": "python",
+          "display_name": "Python",
+          "description": "Python coding workflow skill.",
+          "skill_path": "python",
+          "source_url": "https://github.com/openai/skills/tree/0123456789abcdef/python",
+          "target_label": "@openai_skills//:python"
+        }
+      ]
+    }
+  ]
+}
+```
+
+`list_skills --json` may emit this aggregate schema directly, or a filtered projection of it.
+
+## 11. Output behavior
+
+### 11.1 Human-readable output
 
 Default output should be grouped by registry and list, for each skill:
 
@@ -541,6 +686,7 @@ Registry: openai_skills
         name = "openai_skills",
         url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
         strip_prefix = "skills-0123456789abcdef",
+        skill_path_prefix = "",
     )
     use_repo(skill_deps, "openai_skills")
     @openai_skills//:python
@@ -548,7 +694,7 @@ Registry: openai_skills
 
 The exact formatting can vary, but those four information elements must be present.
 
-### 10.2 JSON output
+### 11.2 JSON output
 
 `--json` prints machine-readable discovered results.
 
@@ -562,7 +708,7 @@ Suggested per-skill fields:
 - `strip_prefix`
 - `target_label`
 
-## 11. Link generation
+## 12. Link generation
 
 Each discovered skill should include a link to the full online skill source.
 
@@ -584,7 +730,7 @@ In v1, that means:
 - append `tree/<resolved_revision>/<skill_path>` where `skill_path` is the discovered skill
   path relative to the extracted archive root after `strip_prefix`
 
-### 11.1 `archive_url` to revision mapping
+### 12.1 `archive_url` to revision mapping
 
 For `link_format = "github_tree"`, the revision used for source links must be derived from
 `archive_url` using this supported shape:
@@ -600,15 +746,15 @@ If `archive_url` does not match the supported commit-pinned GitHub archive shape
 may still proceed, but `source_url` must be omitted unless the implementation has another
 deterministic way to compute it from the configured `link_format`.
 
-## 12. Bazel snippet generation
+## 13. Bazel snippet generation
 
 The listing target should print the correct Bazel usage for each skill.
 
 That output must include:
 
-- the `skill_deps = use_extension(...)` line when it is not already present in the
-  consumer's `MODULE.bazel`
+- the `skill_deps = use_extension(...)` line
 - the correct `skill_deps.remote(...)` stanza using the same pinned archive URL
+- the `skill_path_prefix` argument using the exact configured value
 - the `use_repo(...)` line
 - the synthesized target label, for example `@openai_skills//:python`
 
@@ -619,9 +765,16 @@ The goal is that a user can copy from the listing output directly into:
 
 This is still guidance output. The tool does not edit user files.
 
-## 13. Caching model
+`--skill=<name>` matching rules:
 
-### 13.1 Module extension and repository cache
+- with no `--registry` filter, match all registries containing a discovered skill with that
+  exact `skill_name`
+- with `--registry=<id>`, apply `--skill` after the registry filter, so the result is the
+  intersection of both filters
+
+## 14. Caching model
+
+### 14.1 Module extension and repository cache
 
 Pinned registry archives should be fetched through Bazel module extension and repository rule
 machinery so Bazel can reuse both extension evaluation results and downloaded content until
@@ -629,7 +782,7 @@ the effective pin changes.
 
 The expected cache boundary is `MODULE.bazel.lock`, not a custom lock file.
 
-### 13.2 Action cache
+### 14.2 Action cache
 
 Skill discovery and frontmatter parsing should be normal Bazel actions that emit manifests.
 Those manifests should be reused until one of the following changes:
@@ -639,14 +792,14 @@ Those manifests should be reused until one of the following changes:
 - registry definition inputs that affect link rendering or filtering
 - repo-level registry config files consumed by the extension
 
-### 13.3 Final run target
+### 14.3 Final run target
 
 The final `bazel run ...:list_skills` target should be a formatter over already-generated
 manifests. It should not perform the expensive network or parsing work itself.
 
 This is the main reason repeated invocations can stay cheap.
 
-## 14. Suggested repository layout
+## 15. Suggested repository layout
 
 Suggested new files in `rules_agents`:
 
@@ -665,15 +818,17 @@ Suggested target names:
 
 - `@rules_agents//tools:list_skills`
 - `@rules_agents//tools:update_registries`
-- `@rules_agents//tools:registry_manifests`
+- `@rules_agents_registry_index//:registry_manifests`
+- `@rules_agents_registry_index//:aggregate_manifest.json`
 
-## 15. Testing requirements
+## 16. Testing requirements
 
 The feature should be covered with deterministic tests:
 
 - built-in registry definitions conform to `catalog/registries.schema.json`
 - repo-level override files conform to `catalog/registries.schema.json`
 - built-in registry definitions load successfully
+- zero-argument `skill_deps.registries()` enables built-in registries only
 - repo-level extension merges correctly
 - repo-level replacement fully replaces defaults
 - module extension inputs are reflected in `MODULE.bazel.lock` invalidation behavior
@@ -682,12 +837,13 @@ The feature should be covered with deterministic tests:
 - skill discovery matches the `skill_deps` convention
 - frontmatter description extraction works
 - source links are rendered correctly
-- printed Bazel snippets use pinned archive URLs
+- printed Bazel snippets use pinned archive URLs and the exact configured `skill_path_prefix`
 - no ad hoc network logic exists in the final runtime formatter
+- `update_registries` network behavior is limited to the explicit maintainer command
 - registry update tooling does not modify pins without explicit apply behavior
 - registry update tooling rewrites pins deterministically when apply is requested
 
-## 16. Why this is the right scope
+## 17. Why this is the right scope
 
 This proposal solves the discovery problem without turning `rules_agents` into a general
 registry product.
@@ -705,7 +861,7 @@ It keeps the core discipline:
 
 This is a boring, Bazel-native solution.
 
-## 17. Deferred ideas
+## 18. Deferred ideas
 
 Keep the following out of the first version:
 

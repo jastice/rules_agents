@@ -180,6 +180,8 @@ If you only want the registries that ship with `rules_agents`, add this to `MODU
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 
 skill_deps.registries()
+
+use_repo(skill_deps, "rules_agents_registry_index")
 ```
 
 That enables the built-in curated registries and lets Bazel cache registry resolution through
@@ -205,6 +207,9 @@ bazel run @rules_agents//tools:list_skills -- --skill=python
 bazel run @rules_agents//tools:list_skills -- --json
 ```
 
+`--agent` filters at registry granularity. A registry is included when it declares support
+for that agent.
+
 For each discovered skill, the command prints:
 
 - the short description from `SKILL.md` frontmatter
@@ -225,6 +230,7 @@ skill_deps.remote(
     name = "openai_skills",
     url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
     strip_prefix = "skills-0123456789abcdef",
+    skill_path_prefix = "",
 )
 
 use_repo(skill_deps, "openai_skills")
@@ -250,7 +256,7 @@ one remote skill repo usable from `agent_profile`.
 ### 4. Add repo-specific registries or pin overrides
 
 If your repository needs additional registries or different pinned revisions, create
-`agent/registries.json` and tell `skill_deps` to use it.
+`tools/rules_agents/registries.json` and tell `skill_deps` to use it.
 
 In `MODULE.bazel`:
 
@@ -258,9 +264,11 @@ In `MODULE.bazel`:
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 
 skill_deps.registries(
-    config = "//agent:registries.json",
+    config = "//tools/rules_agents:registries.json",
     mode = "extend",  # or "replace"
 )
+
+use_repo(skill_deps, "rules_agents_registry_index")
 ```
 
 Use `mode = "extend"` to add repo-specific registries on top of the built-ins. Use
@@ -297,9 +305,9 @@ After the pin changes, rerun `bazel run @rules_agents//tools:list_skills` or you
 profile targets. Bazel handles cache invalidation and lockfile updates itself.
 
 `--apply` only rewrites repo-owned config in the current workspace, such as
-`agent/registries.json`. It does not modify the built-in registry catalog shipped inside the
-external `rules_agents` dependency. To pick up newer built-in registry pins, bump the
-`rules_agents` version your repository depends on.
+`tools/rules_agents/registries.json`. It does not modify the built-in registry catalog
+shipped inside the external `rules_agents` dependency. To pick up newer built-in registry
+pins, bump the `rules_agents` version your repository depends on.
 
 ## Public API
 
