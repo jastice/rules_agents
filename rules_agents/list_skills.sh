@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Resolve symlinks to find the real script location and its sibling data files.
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  if [[ "$link" = /* ]]; then
+    self="$link"
+  else
+    self="$(dirname "$self")/$link"
+  fi
+done
+DATA_DIR="$(cd "$(dirname "$self")" && pwd)"
+MANIFEST="${DATA_DIR}/aggregate_manifest.json"
+SKILLS_TSV="${DATA_DIR}/skills.tsv"
+
 json_mode=false
 filter_registry=""
 filter_skill=""
@@ -17,9 +31,12 @@ for arg in "$@"; do
 done
 
 if "$json_mode"; then
-  cat <<'__JSON_EOF__'
-__AGGREGATE_JSON__
-__JSON_EOF__
+  cat "$MANIFEST"
+  exit 0
+fi
+
+if [[ ! -s "$SKILLS_TSV" ]]; then
+  echo "No skills discovered from configured registries."
   exit 0
 fi
 
@@ -79,6 +96,4 @@ END {
     print "No skills discovered from configured registries."
   }
 }
-' <<'__TSV_EOF__'
-__SKILLS_TSV__
-__TSV_EOF__
+' "$SKILLS_TSV"

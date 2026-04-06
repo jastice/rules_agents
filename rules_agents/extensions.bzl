@@ -357,6 +357,10 @@ filegroup(
 sh_binary(
     name = "list_skills",
     srcs = ["list_skills.sh"],
+    data = [
+        "aggregate_manifest.json",
+        "skills.tsv",
+    ],
 )
 
 exports_files(["aggregate_manifest.json"])
@@ -417,10 +421,9 @@ def _registry_index_repo_impl(repo_ctx):
 
     aggregate_json = json.encode(aggregate)
     skills_tsv = _skills_tsv_content(aggregate)
-    template = repo_ctx.read(repo_ctx.attr.list_skills_template)
-    script = template.replace("__AGGREGATE_JSON__", aggregate_json).replace("__SKILLS_TSV__", skills_tsv)
     repo_ctx.file("aggregate_manifest.json", aggregate_json)
-    repo_ctx.file("list_skills.sh", script, executable = True)
+    repo_ctx.file("skills.tsv", skills_tsv)
+    repo_ctx.file("list_skills.sh", repo_ctx.read(repo_ctx.attr.list_skills_script), executable = True)
     repo_ctx.file("BUILD.bazel", _registry_index_build_file())
 
 
@@ -429,7 +432,7 @@ _registry_index_repo = repository_rule(
     attrs = {
         "builtins": attr.label(mandatory = True),
         "config": attr.label(),
-        "list_skills_template": attr.label(default = Label("//rules_agents:list_skills.sh.tpl")),
+        "list_skills_script": attr.label(default = Label("//rules_agents:list_skills.sh")),
         "mode": attr.string(default = "extend"),
     },
 )
