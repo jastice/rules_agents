@@ -53,8 +53,6 @@ local_path_override(
     path = "${REPO_ROOT}",
 )
 
-bazel_dep(name = "rules_python", version = "1.7.0")
-
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries()
 use_repo(skill_deps, "rules_agents_registry_index")
@@ -111,8 +109,6 @@ local_path_override(
     module_name = "rules_agents",
     path = "${REPO_ROOT}",
 )
-
-bazel_dep(name = "rules_python", version = "1.7.0")
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries(
@@ -220,8 +216,6 @@ local_path_override(
     path = "${REPO_ROOT}",
 )
 
-bazel_dep(name = "rules_python", version = "1.7.0")
-
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries(
     config = "//tools/rules_agents:registries.json",
@@ -288,8 +282,6 @@ local_path_override(
     path = "${REPO_ROOT}",
 )
 
-bazel_dep(name = "rules_python", version = "1.7.0")
-
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries(
     config = "//tools/rules_agents:registries.json",
@@ -354,8 +346,6 @@ local_path_override(
     module_name = "rules_agents",
     path = "${REPO_ROOT}",
 )
-
-bazel_dep(name = "rules_python", version = "1.7.0")
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries(
