@@ -19,9 +19,7 @@ Do:
 - keep generated file ownership limited to tool-managed subdirectories
 Do not:
 - build a general agent framework
-- add support beyond `codex` and `claude_code`
 - synthesize or own user-global client config
-- add secret storage, secret files, MCP provisioning, or binary installation in v1
 - broaden scope beyond install, doctor, manifest, and start behavior
 For `codex`:
 - install repo-local skills under `.agents/skills`
