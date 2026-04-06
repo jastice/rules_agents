@@ -3,4 +3,5 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "defs.bzl",
     "extensions.bzl",
+    "list_skills.sh.tpl",
 ])
