@@ -5,7 +5,7 @@
 In your Bazel repo, tell your agent:
 ```
 Follow this guide to install rules_agents into this Bazel repo:
-https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents/SKILL.md
+https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents/references/quickstart.md
 ```
 
 ## About
