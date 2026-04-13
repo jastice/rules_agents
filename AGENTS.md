@@ -20,7 +20,6 @@ Non-goals:
 - global user config management
 - agent binary installation
 - secret storage or secret minting
-- support for clients beyond `codex` and `claude_code`
 
 ## Source Of Truth
 
