@@ -96,16 +96,12 @@ What happens:
 3. `run` installs the declared skills under `.agents/skills`.
 4. the launcher starts `codex` from the repository root.
 
-Codex does not need `OPENAI_API_KEY` in the default example. That keeps normal in-agent login
-flows working. Declare `credential_env` only when a skill or repo-local tool explicitly needs it.
-
-For Claude Code, switch only the runner and credential env:
+For Claude Code, switch only the runner:
 
 ```python
 agent_profile(
     name = "claude_dev_profile",
     skills = [":repo_helper"],
-    credential_env = ["ANTHROPIC_API_KEY"],
 )
 
 agent_runner(
