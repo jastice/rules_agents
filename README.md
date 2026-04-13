@@ -1,5 +1,15 @@
 # rules_agents
 
+## Lazy quickstart
+
+In your Bazel repo, tell your agent:
+```
+Follow this guide to install rules_agents into this Bazel repo:
+https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents_repo_guide/SKILL.md
+```
+
+## About
+
 `rules_agents` lets a repository declare a local coding-agent environment in Bazel and
 launch it with one command.
 
