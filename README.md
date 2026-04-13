@@ -5,7 +5,7 @@
 In your Bazel repo, tell your agent:
 ```
 Follow this guide to install rules_agents into this Bazel repo:
-https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents_usage/SKILL.md
+https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents/SKILL.md
 ```
 
 ## About
@@ -16,7 +16,7 @@ launch it with one command.
 Basic features:
 
 - Configure an agent profile with a set of skills.
-- Skills may be resolved from a registry. Default registries include this repo's setup and usage skills plus the official OpenAI and Anthropic catalogs.
+- Skills may be resolved from a registry. Default registries include this repo's `rules_agents` skill plus the official OpenAI and Anthropic catalogs.
 - Registry archive pins can be refreshed with `@rules_agents//tools:update_registries`.
 - Run an agent with a profile as Bazel target. Multiple agents may share the same skill profile.
 
@@ -115,7 +115,7 @@ agent_runner(
 
 That gives the repo one buildable profile artifact plus one runnable Codex runner.
 
-For the fastest batteries-included setup, install the usage skill from this repo and verify with
+For the fastest batteries-included setup, install the `rules_agents` skill from this repo and verify with
 one command.
 
 In `MODULE.bazel`, bring in `rules_agents`:
@@ -140,14 +140,14 @@ skill_deps.remote(
 use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")
 ```
 
-In a BUILD file, start with the usage skill:
+In a BUILD file, start with the `rules_agents` skill:
 
 ```python
 load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner")
 
 agent_profile(
     name = "dev_profile",
-    skills = ["@rules_agents_skills//:rules_agents_usage"],
+    skills = ["@rules_agents_skills//:rules_agents"],
 )
 
 agent_runner(
@@ -198,7 +198,7 @@ its normal module-extension machinery.
 
 The default catalog includes:
 
-- `rules_agents_skills` for setup and usage skills shipped in this repository, discovered under `skills`
+- `rules_agents_skills` for the `rules_agents` skill shipped in this repository, discovered under `skills`
 - `openai_skills` for Codex skills from `openai/skills`, discovered under `skills/.curated`
 - `anthropic_skills` for Claude Code skills from `anthropics/skills`, discovered under `skills`
 

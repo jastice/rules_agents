@@ -40,10 +40,12 @@ main() {
   local bazel_bin=
   local tmp_root="${TEST_TMPDIR:-$(mktemp -d /tmp/rules_agents_git_override_test.XXXXXX)}"
   local workspace_dir="${tmp_root}/git-override-workspace"
+  local repo_skills_archive="${tmp_root}/rules-agents-skills.tar.gz"
   local output_file="${tmp_root}/doctor.out"
 
   bazel_bin="$(resolve_bazel)"
-  mkdir -p "${workspace_dir}/skills/repo_helper" "${workspace_dir}/tools/rules_agents"
+  mkdir -p "${workspace_dir}"
+  tar -czf "$repo_skills_archive" -C "${REPO_ROOT}/skills" .
 
   cat > "${workspace_dir}/MODULE.bazel" <<EOF
 module(name = "git_override_test")
@@ -56,62 +58,39 @@ git_override(
 )
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
-skill_deps.registries(
-    config = "//tools/rules_agents:registries.json",
-    mode = "replace",
+skill_deps.registries()
+skill_deps.remote(
+    name = "rules_agents_skills",
+    url = "file://${repo_skills_archive}",
 )
-use_repo(skill_deps, "rules_agents_registry_index")
+use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")
 EOF
 
   cat > "${workspace_dir}/BUILD.bazel" <<'EOF'
-load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
-
-agent_skill(
-    name = "repo_helper",
-    root = "skills/repo_helper",
-    srcs = glob(["skills/repo_helper/**"], exclude_directories = 1),
-)
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner")
 
 agent_profile(
-    name = "repo_dev_profile",
-    skills = [":repo_helper"],
+    name = "dev_profile",
+    skills = ["@rules_agents_skills//:rules_agents"],
 )
 
 agent_runner(
-    name = "codex_dev",
-    profile = ":repo_dev_profile",
+    name = "dev",
+    profile = ":dev_profile",
     runner = "codex",
 )
 EOF
 
-  cat > "${workspace_dir}/skills/repo_helper/SKILL.md" <<'EOF'
-# Repo Helper
-EOF
-
-  cat > "${workspace_dir}/tools/BUILD.bazel" <<'EOF'
-package(default_visibility = ["//visibility:public"])
-EOF
-
-  cat > "${workspace_dir}/tools/rules_agents/BUILD.bazel" <<'EOF'
-package(default_visibility = ["//visibility:public"])
-exports_files(["registries.json"])
-EOF
-
-  cat > "${workspace_dir}/tools/rules_agents/registries.json" <<'EOF'
-{
-  "version": 1,
-  "registries": []
-}
-EOF
-
   (
     cd "$workspace_dir"
-    "$bazel_bin" build //:codex_dev_manifest
+    "$bazel_bin" build //:dev_manifest
+    "$bazel_bin" run @rules_agents_registry_index//:list_skills -- --registry=rules_agents_skills
     export CODEX_BIN=/usr/bin/true
-    "$bazel_bin" run //:codex_dev_doctor
+    "$bazel_bin" run //:dev_doctor
   ) > "$output_file"
 
-  grep -q "profile: repo_dev_profile" "$output_file" || fail "doctor omitted profile"
+  grep -q "@rules_agents_skills//:rules_agents" "$output_file" || fail "registry listing omitted rules_agents"
+  grep -q "profile: dev_profile" "$output_file" || fail "doctor omitted profile"
   grep -q "agent_binary: found" "$output_file" || fail "doctor did not resolve codex binary"
 }
 

@@ -11,7 +11,7 @@
       "default_branch": "main",
       "agents": ["claude_code", "codex"],
       "skill_path_prefix": "skills",
-      "description": "Setup and usage skills shipped with rules_agents.",
+      "description": "The rules_agents skill shipped with this repository.",
       "link_format": "github_tree"
     },
     {
