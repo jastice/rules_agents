@@ -73,7 +73,7 @@ write_build_file() {
   local workspace_dir="$1"
 
   cat > "${workspace_dir}/BUILD.bazel" <<'EOF'
-load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_skill")
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
 
 agent_skill(
     name = "local_skill",
@@ -82,8 +82,7 @@ agent_skill(
 )
 
 agent_profile(
-    name = "dev",
-    agent = "codex",
+    name = "dev_profile",
     skills = [
         ":local_skill",
         "@remote_root_skill//:remote_root_skill",
@@ -93,6 +92,12 @@ agent_profile(
         "@remote_dir_skills//:test_runner",
     ],
     credential_env = ["OPENAI_API_KEY"],
+)
+
+agent_runner(
+    name = "dev",
+    profile = ":dev_profile",
+    runner = "codex",
 )
 EOF
 }

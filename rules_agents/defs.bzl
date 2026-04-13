@@ -1,36 +1,22 @@
 """Public rules_agents API surface."""
 
 load("//rules_agents/private:profile_v2.bzl", _agent_profile_v2 = "agent_profile")
-load("//rules_agents/private:profile.bzl", _agent_profile = "agent_profile")
 load("//rules_agents/private:runner.bzl", _agent_runner = "agent_runner")
 load("//rules_agents/private:skill_rule.bzl", _agent_skill = "agent_skill")
 
 
-def agent_profile(name, skills = [], credential_env = [], agent = None):
+def agent_profile(name, skills = [], credential_env = []):
     """Declares an agent profile.
 
-    New form:
+    Generates:
       - :name for the buildable profile artifact
       - :name_manifest as an explicit alias to the profile artifact
-
-    Legacy compatibility form when `agent` is set:
-      - :name for install + start
-      - :name_doctor for validation without launch
-      - :name_manifest for the machine-readable runner manifest artifact
     """
-    if agent == None:
-        _agent_profile_v2(
-            name = name,
-            skills = skills,
-            credential_env = credential_env,
-        )
-    else:
-        _agent_profile(
-            name = name,
-            agent = agent,
-            skills = skills,
-            credential_env = credential_env,
-        )
+    _agent_profile_v2(
+        name = name,
+        skills = skills,
+        credential_env = credential_env,
+    )
 
 
 def agent_runner(name, runner, profile):

@@ -3,35 +3,42 @@
 `rules_agents` lets a repository declare a local coding-agent environment in Bazel and
 launch it with one command.
 
-The intended v1 experience is simple:
+Basic features:
+
+- Configure an agent profile with a set of skills.
+- Skills may be resolved from a registry. Codex and Claude Code registries are included by default.
+- Skills can be automatically updated from the registry.
+- Run an agent with a profile as Bazel target. Multiple agents may share the same skill profile.
+
+The user experience is simple:
 
 ```bash
 bazel run //agent:dev
 ```
 
-From the repository's point of view, that command should:
+That command will:
 
 1. choose a supported agent client: `codex` or `claude_code`
 2. build the repo's declared profile artifact
-3. set up the selected runner's repo-local state
+3. set up the selected runner's repo-local state (e.g. in `.agents` / `.claude`)
 4. validate required credential environment variables
 5. launch the selected agent from the repository root
 
-This is deliberately narrow. It is not a general AI framework, global config manager, or
+That's all. This is not a general AI framework, global config manager, or
 agent installer. It is a repo-owned launcher and skill installer.
 
 ## Why it exists
 
-Repositories already own their build, test, and developer tooling. This project aims to let
+Repositories already own their build and test toolchains. This project aims to let
 them own local coding-agent setup the same way:
 
 - the repo chooses the agent
-- the repo declares reusable skills
+- the repo declares reusable skills and keeps them up to date
 - Bazel turns that declaration into a reproducible local setup
 
 That keeps agent setup repo-scoped, shareable, and boring in the right way.
 
-## What v1 includes
+## This version includes:
 
 - exactly two supported agent clients: `codex` and `claude_code`
 - local skills declared from files already in the repo
@@ -43,22 +50,21 @@ That keeps agent setup repo-scoped, shareable, and boring in the right way.
 
 Before using `rules_agents`, a developer should already have:
 
-- Bazel with Bzlmod enabled
 - one supported agent client installed separately
 - any required agent login or auth state handled by that client
-- required credential environment variables exported in the shell
+- OR: required credential environment variables exported in the shell
 
 `rules_agents` does not install agent binaries, synthesize user-global config, or manage
 secrets beyond validating and forwarding declared env vars.
 
-## Mental Model
+## How it works
 
 - `agent_skill`: one portable skill bundle rooted at a `SKILL.md`
 - `agent_profile`: one buildable local profile artifact
 - `agent_runner`: one runtime realization of a profile
 - `skill_deps`: one module extension for bringing in remote skill archives
 
-For the supported agents, managed skills are intended to be installed under:
+For the supported agents, managed skills will be installed under:
 
 - `codex`: `<repo>/.agents/skills`
 - `claude_code`: `<repo>/.claude/skills`
@@ -152,7 +158,7 @@ agent_runner(
 )
 ```
 
-Then the intended user commands are:
+Then the available user commands are:
 
 ```bash
 bazel build //agent:repo_dev_profile
@@ -164,7 +170,9 @@ bazel run //agent:codex_dev -- --help
 
 ## Skill Registry Workflow
 
-Once skill registry discovery is implemented, the expected user workflow is:
+`rules_agents` supports discovering skills from skill registries.
+
+The user workflow is:
 
 1. enable registry discovery in `MODULE.bazel`
 2. list available skills from the configured registries
