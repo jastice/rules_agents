@@ -29,3 +29,18 @@ alias(
     name = "claude_dev_manifest",
     actual = "//examples:claude_dev_profile_manifest",
 )
+
+alias(
+    name = "claude_dev_auth",
+    actual = "//examples:claude_dev_auth",
+)
+
+alias(
+    name = "claude_dev_auth_doctor",
+    actual = "//examples:claude_dev_auth_doctor",
+)
+
+alias(
+    name = "claude_dev_auth_manifest",
+    actual = "//examples:claude_dev_profile_auth_manifest",
+)

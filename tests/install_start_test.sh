@@ -9,7 +9,10 @@ readonly EXTRA_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_extra_setup
 readonly START_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_run"
 readonly CLAUDE_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_setup"
 readonly CLAUDE_START_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_run"
+readonly CLAUDE_AUTH_INSTALL_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_auth_setup"
+readonly CLAUDE_AUTH_START_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_auth_run"
 readonly CLAUDE_MANAGED_DIR="__bazel_agent_env__claude_dev_profile__main__examples__repo_helper"
+readonly CLAUDE_AUTH_MANAGED_DIR="__bazel_agent_env__claude_dev_profile_auth__main__examples__repo_helper"
 readonly EXTRA_HELLO_WORLD_DIR="__bazel_agent_env__repo_dev_profile_extra__main__examples__hello_world"
 readonly EXTRA_MANAGED_DIR="__bazel_agent_env__repo_dev_profile_extra__main__examples__repo_helper"
 readonly FAKE_CODEX_SRC="${REPO_RUNFILES_ROOT}/examples/fake_codex.sh"
@@ -171,7 +174,6 @@ EOF
 
   make_workspace "$claude_workspace"
   (
-    export ANTHROPIC_API_KEY=test
     export CLAUDE_CODE_BIN=/usr/bin/true
     run_with_workspace "$claude_workspace" "$CLAUDE_INSTALL_BIN"
   )
@@ -203,7 +205,6 @@ EOF
 
   make_workspace "$claude_start_workspace"
   (
-    export ANTHROPIC_API_KEY=test
     export FAKE_CLAUDE_OUT="$claude_output_file"
     export CLAUDE_CODE_BIN="$fake_claude_bin"
     run_with_workspace "$claude_start_workspace" "$CLAUDE_START_BIN" -- --omega
@@ -211,9 +212,31 @@ EOF
 
   assert_file "$claude_output_file"
   grep -q "cwd=${claude_start_workspace}" "$claude_output_file" || fail "claude start used wrong cwd"
-  grep -q "anthropic_api_key=test" "$claude_output_file" || fail "claude start did not forward env"
+  grep -q "anthropic_api_key=$" "$claude_output_file" || fail "claude start unexpectedly required ANTHROPIC_API_KEY"
   grep -q "argv=--omega " "$claude_output_file" || fail "claude start did not forward args"
   assert_file "${claude_start_workspace}/.claude/skills/${CLAUDE_MANAGED_DIR}/SKILL.md"
+
+  local claude_auth_workspace="${TEST_TMPDIR}/claude-auth-workspace"
+  local claude_auth_output_file="${TEST_TMPDIR}/claude-auth-start.out"
+
+  make_workspace "$claude_auth_workspace"
+  (
+    export ANTHROPIC_API_KEY=test
+    export CLAUDE_CODE_BIN=/usr/bin/true
+    run_with_workspace "$claude_auth_workspace" "$CLAUDE_AUTH_INSTALL_BIN"
+  )
+
+  assert_file "${claude_auth_workspace}/.claude/skills/${CLAUDE_AUTH_MANAGED_DIR}/SKILL.md"
+
+  (
+    export ANTHROPIC_API_KEY=test
+    export FAKE_CLAUDE_OUT="$claude_auth_output_file"
+    export CLAUDE_CODE_BIN="$fake_claude_bin"
+    run_with_workspace "$claude_auth_workspace" "$CLAUDE_AUTH_START_BIN" -- --sigma
+  )
+
+  assert_file "$claude_auth_output_file"
+  grep -q "anthropic_api_key=test" "$claude_auth_output_file" || fail "claude auth start did not forward env"
 }
 
 main "$@"

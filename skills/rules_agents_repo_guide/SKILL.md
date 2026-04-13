@@ -253,9 +253,10 @@ Current example targets in this repository:
 - `//agent:dev` -> alias to the example Codex runner
 - `//agent:dev_doctor`
 - `//agent:dev_manifest`
-- `//agent:claude_dev`
+- `//agent:claude_dev` -> default Claude Code example without declared credential env
 - `//agent:claude_dev_doctor`
 - `//agent:claude_dev_manifest`
+- `//agent:claude_dev_auth` -> optional Claude Code example with `credential_env = ["ANTHROPIC_API_KEY"]`
 
 Example source declarations live in `examples/BUILD.bazel`:
 

@@ -4,7 +4,7 @@ set -euo pipefail
 
 readonly REPO_RUNFILES_ROOT="${TEST_SRCDIR}/_main"
 readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_doctor"
-readonly CLAUDE_DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_doctor"
+readonly CLAUDE_DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_auth_doctor"
 
 fail() {
   echo "FAIL: $*" >&2

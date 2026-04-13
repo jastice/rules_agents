@@ -388,8 +388,9 @@ Repository verification today:
 
 - `//agent:dev`, `//agent:dev_doctor` alias the runnable Codex example runner targets
 - `//agent:dev_manifest` aliases the Codex example profile artifact target (use `bazel build`, not `bazel run`)
-- `//agent:claude_dev`, `//agent:claude_dev_doctor` alias the runnable Claude Code example runner targets
+- `//agent:claude_dev`, `//agent:claude_dev_doctor` alias the runnable Claude Code example runner targets without declared credential env
 - `//agent:claude_dev_manifest` aliases the Claude Code example profile artifact target (use `bazel build`, not `bazel run`)
+- `//agent:claude_dev_auth`, `//agent:claude_dev_auth_doctor` show the opt-in Claude Code example with `credential_env = ["ANTHROPIC_API_KEY"]`
 - `//examples:codex_dev_setup` and `//examples:claude_dev_setup` are example setup wrappers used by tests
 
 ## Repository Layout

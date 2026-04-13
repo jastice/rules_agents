@@ -42,12 +42,23 @@ agent_runner(
 agent_profile(
     name = "claude_dev_profile",
     skills = [":repo_helper"],
-    credential_env = ["ANTHROPIC_API_KEY"],
 )
 
 agent_runner(
     name = "claude_dev",
     profile = ":claude_dev_profile",
+    runner = "claude_code",
+)
+
+agent_profile(
+    name = "claude_dev_profile_auth",
+    skills = [":repo_helper"],
+    credential_env = ["ANTHROPIC_API_KEY"],
+)
+
+agent_runner(
+    name = "claude_dev_auth",
+    profile = ":claude_dev_profile_auth",
     runner = "claude_code",
 )
 
