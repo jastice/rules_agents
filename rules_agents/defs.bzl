@@ -36,10 +36,11 @@ def agent_runner(name, runner, profile):
     )
 
 
-def agent_skill(name, root, srcs):
+def agent_skill(name, root, srcs, tags = []):
     """Declares a portable skill bundle rooted at `SKILL.md`."""
     _agent_skill(
         name = name,
         root = root,
         srcs = srcs,
+        tags = tags,
     )

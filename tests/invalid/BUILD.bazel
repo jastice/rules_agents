@@ -6,4 +6,5 @@ agent_skill(
     name = "missing_skill",
     root = "missing_skill",
     srcs = glob(["missing_skill/**"], exclude_directories = 1),
+    tags = ["manual"],
 )
