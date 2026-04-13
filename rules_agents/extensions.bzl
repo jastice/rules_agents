@@ -79,6 +79,38 @@ def _search_root_for_prefix(prefix):
     return "./" + prefix
 
 
+def _build_file_path(package_dir, build_file_name):
+    if not package_dir:
+        return build_file_name
+    return package_dir + "/" + build_file_name
+
+
+def _build_file_name_for_package(repo_ctx, package_dir):
+    if repo_ctx.path(_build_file_path(package_dir, "BUILD")).exists:
+        return "BUILD"
+    return "BUILD.bazel"
+
+
+def _package_dir_for_skill_root(skill_root, skill_path_prefix = ""):
+    if skill_root == ".":
+        return ""
+
+    if skill_path_prefix and (skill_root == skill_path_prefix or skill_root.startswith(skill_path_prefix + "/")):
+        return skill_path_prefix
+
+    if "/" not in skill_root:
+        return ""
+    return skill_root.rsplit("/", 1)[0]
+
+
+def _skill_root_relative_to_package(skill_root, package_dir):
+    if not package_dir:
+        return skill_root
+    if skill_root == package_dir:
+        return "."
+    return skill_root[len(package_dir) + 1:]
+
+
 def _discover_skill_roots(repo_ctx, skill_path_prefix = ""):
     search_root = _search_root_for_prefix(skill_path_prefix)
     result = repo_ctx.execute(["/usr/bin/find", search_root, "-type", "f", "-name", "SKILL.md"])
@@ -98,33 +130,46 @@ def _discover_skill_roots(repo_ctx, skill_path_prefix = ""):
     return discovered
 
 
-def _build_file_for_skills(repo_name, skill_roots):
-    lines = [
-        "package(default_visibility = [\"//visibility:public\"])",
-        "",
-        "load(\"@rules_agents//rules_agents:defs.bzl\", \"agent_skill\")",
+def _agent_skill_target_lines(target_name, skill_root):
+    exclude_patterns = ""
+    if skill_root == ".":
+        exclude_patterns = ", exclude = [\"BUILD\", \"BUILD.bazel\"]"
+
+    return [
+        "agent_skill(",
+        "    name = %r," % target_name,
+        "    root = %r," % skill_root,
+        "    srcs = glob(%r, allow_empty = True, exclude_directories = 1%s)," % (
+            _glob_patterns(skill_root),
+            exclude_patterns,
+        ),
+        ")",
         "",
     ]
 
-    seen_names = {}
-    for skill_root in skill_roots:
-        target_name = _target_name_for_skill(repo_name, skill_root)
-        if target_name in seen_names:
-            fail("duplicate synthesized skill target %r from %r and %r" % (
-                target_name,
-                seen_names[target_name],
-                skill_root,
-            ))
-        seen_names[target_name] = skill_root
 
+def _build_file_for_package(skill_targets = [], alias_targets = {}):
+    lines = [
+        "package(default_visibility = [\"//visibility:public\"])",
+        "",
+    ]
+
+    if skill_targets:
         lines.extend([
-            "agent_skill(",
+            "load(\"@rules_agents//rules_agents:defs.bzl\", \"agent_skill\")",
+            "",
+        ])
+        for skill_target in skill_targets:
+            lines.extend(_agent_skill_target_lines(
+                target_name = skill_target["target_name"],
+                skill_root = skill_target["skill_root"],
+            ))
+
+    for target_name in sorted(alias_targets.keys()):
+        lines.extend([
+            "alias(",
             "    name = %r," % target_name,
-            "    root = %r," % skill_root,
-            "    srcs = glob(%r, allow_empty = True, exclude_directories = 1%s)," % (
-                _glob_patterns(skill_root),
-                ", exclude = [\"BUILD.bazel\"]" if skill_root == "." else "",
-            ),
+            "    actual = %r," % alias_targets[target_name],
             ")",
             "",
         ])
@@ -143,8 +188,46 @@ def _remote_skill_repo_impl(repo_ctx):
         fail("skill_path_prefix %r does not exist in extracted archive" % skill_path_prefix)
 
     skill_roots = sorted(_discover_skill_roots(repo_ctx, skill_path_prefix))
+    skill_targets_by_package = {}
+    root_aliases = {}
+    seen_names = {}
 
-    repo_ctx.file("BUILD.bazel", _build_file_for_skills(repo_ctx.attr.repo_name, skill_roots))
+    for skill_root in skill_roots:
+        target_name = _target_name_for_skill(repo_ctx.attr.repo_name, skill_root)
+        if target_name in seen_names:
+            fail("duplicate synthesized skill target %r from %r and %r" % (
+                target_name,
+                seen_names[target_name],
+                skill_root,
+            ))
+        seen_names[target_name] = skill_root
+
+        package_dir = _package_dir_for_skill_root(skill_root, skill_path_prefix)
+        package_skill_root = _skill_root_relative_to_package(skill_root, package_dir)
+        skill_targets = skill_targets_by_package.setdefault(package_dir, [])
+        skill_targets.append({
+            "skill_root": package_skill_root,
+            "target_name": target_name,
+        })
+
+        if package_dir:
+            root_aliases[target_name] = "//%s:%s" % (package_dir, target_name)
+
+    packages_to_write = dict(skill_targets_by_package)
+    packages_to_write.setdefault("", [])
+
+    for package_dir in packages_to_write:
+        build_file_name = _build_file_name_for_package(repo_ctx, package_dir)
+        repo_ctx.file(
+            _build_file_path(package_dir, build_file_name),
+            _build_file_for_package(
+                skill_targets = sorted(
+                    packages_to_write[package_dir],
+                    key = lambda item: item["target_name"],
+                ),
+                alias_targets = root_aliases if not package_dir else {},
+            ),
+        )
 
 
 _remote_skill_repo = repository_rule(

@@ -38,26 +38,24 @@ resolve_bazel() {
 
 main() {
   local bazel_bin=
-  local tmp_root="${TEST_TMPDIR:-$(mktemp -d /tmp/rules_agents_git_override_test.XXXXXX)}"
-  local workspace_dir="${tmp_root}/git-override-workspace"
+  local tmp_root="${TEST_TMPDIR:-$(mktemp -d /tmp/rules_agents_quickstart_archive_test.XXXXXX)}"
+  local workspace_dir="${tmp_root}/quickstart-archive-workspace"
   local repo_skills_archive="${tmp_root}/rules-agents-skills.tar.gz"
   local archive_root="${tmp_root}/archive-root"
   local output_file="${tmp_root}/doctor.out"
 
   bazel_bin="$(resolve_bazel)"
-  mkdir -p "${workspace_dir}"
-  mkdir -p "${archive_root}/rules_agents-main"
+  mkdir -p "${workspace_dir}" "${archive_root}/rules_agents-main"
   cp -R "${REPO_ROOT}/skills" "${archive_root}/rules_agents-main/skills"
   tar -czf "$repo_skills_archive" -C "${archive_root}" rules_agents-main
 
   cat > "${workspace_dir}/MODULE.bazel" <<EOF
-module(name = "git_override_test")
+module(name = "quickstart_archive_test")
 
 bazel_dep(name = "rules_agents", version = "0.1.0")
-git_override(
+local_path_override(
     module_name = "rules_agents",
-    remote = "file://${REPO_ROOT}",
-    branch = "main",
+    path = "${REPO_ROOT}",
 )
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
