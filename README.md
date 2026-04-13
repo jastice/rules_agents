@@ -109,26 +109,20 @@ That gives the repo one buildable profile artifact plus one runnable Codex runne
 If the repo also wants to reuse skills published from another repository, add a module
 extension entry in `MODULE.bazel`:
 
-In `MODULE.bazel`, bring in `rules_agents` and any remote skill repos:
+In `MODULE.bazel`, bring in `rules_agents`:
 
 ```python
-bazel_dep(name = "rules_agents")
+git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
-archive_override(
-    module_name = "rules_agents",
-    urls = ["https://github.com/you/rules_agents/archive/COMMIT.tar.gz"],
-    strip_prefix = "rules_agents-COMMIT",
+git_repository(
+    name = "rules_agents",
+    remote = "https://github.com/jastice/rules_agents/",
+    branch = "main",
 )
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
-
-skill_deps.remote(
-    name = "community_skills",
-    url = "https://github.com/org/bazel-skills/archive/abc123.tar.gz",
-    strip_prefix = "bazel-skills-abc123",
-)
-
-use_repo(skill_deps, "community_skills")
+skill_deps.registries()
+use_repo(skill_deps, "rules_agents_registry_index")
 ```
 
 In a BUILD file, declare one local skill and one profile:
@@ -146,7 +140,6 @@ agent_profile(
     name = "repo_dev_profile",
     skills = [
         ":bazel_debug_skill",
-        "@community_skills//:test_runner",
     ],
     credential_env = ["OPENAI_API_KEY"],
 )

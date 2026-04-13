@@ -35,25 +35,19 @@ native repo-local agent directory, and launches the agent from the repository ro
 Add `rules_agents` in `MODULE.bazel` and enable the built-in official skill registries:
 
 ```python
-bazel_dep(name = "rules_agents")
+git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
-archive_override(
-    module_name = "rules_agents",
-    urls = ["https://github.com/you/rules_agents/archive/COMMIT.tar.gz"],
-    strip_prefix = "rules_agents-COMMIT",
+git_repository(
+    name = "rules_agents",
+    remote = "https://github.com/jastice/rules_agents/",
+    branch = "main",
 )
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 
 skill_deps.registries()
 
-skill_deps.remote(
-    name = "openai_skills",
-    url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
-    strip_prefix = "skills-0123456789abcdef",
-)
-
-use_repo(skill_deps, "openai_skills", "rules_agents_registry_index")
+use_repo(skill_deps, "rules_agents_registry_index")
 ```
 
 List the built-in registries and discover a skill:
@@ -63,8 +57,7 @@ bazel run @rules_agents_registry_index//:list_skills
 bazel run @rules_agents_registry_index//:list_skills -- --agent=codex
 ```
 
-Declare one local skill, one discovered remote skill, one profile, and one runner in a
-`BUILD.bazel` file:
+Declare one local skill, one profile, and one runner in a `BUILD.bazel` file:
 
 ```python
 load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
@@ -79,7 +72,6 @@ agent_profile(
     name = "repo_dev_profile",
     skills = [
         ":repo_helper",
-        "@openai_skills//:python",
     ],
     credential_env = ["OPENAI_API_KEY"],
 )
