@@ -94,7 +94,6 @@ agent_profile(
     skills = [
         ":repo_helper",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(
@@ -112,10 +111,10 @@ extension entry in `MODULE.bazel`:
 In `MODULE.bazel`, bring in `rules_agents`:
 
 ```python
-git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+bazel_dep(name = "rules_agents", version = "0.1.0")
 
-git_repository(
-    name = "rules_agents",
+git_override(
+    module_name = "rules_agents",
     remote = "https://github.com/jastice/rules_agents/",
     branch = "main",
 )
@@ -141,7 +140,6 @@ agent_profile(
     skills = [
         ":bazel_debug_skill",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(
@@ -172,6 +170,10 @@ The user workflow is:
 3. copy the printed Bazel snippet for the skill you want
 4. add the synthesized skill target to an `agent_profile`
 5. optionally pin newer registry revisions with an explicit update command
+
+Codex examples omit `credential_env` by default so normal in-agent login can work unchanged.
+Add `credential_env = ["OPENAI_API_KEY"]` only when a skill or repo-local tool explicitly
+needs that variable.
 
 ### 1. Enable built-in registries
 
@@ -250,7 +252,6 @@ agent_profile(
         ":repo_helper",
         "@openai_skills//:python",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 ```
 

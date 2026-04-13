@@ -4,6 +4,7 @@ set -euo pipefail
 
 readonly REPO_RUNFILES_ROOT="${TEST_SRCDIR}/_main"
 readonly DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/codex_dev_doctor"
+readonly CLAUDE_DOCTOR_BIN="${REPO_RUNFILES_ROOT}/examples/claude_dev_doctor"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -17,11 +18,13 @@ make_workspace() {
 }
 
 run_doctor() {
+  local bin_path="$1"
+  shift
   local workspace_dir="$1"
   shift
   export RUNFILES_DIR="${TEST_SRCDIR}"
   export BUILD_WORKSPACE_DIRECTORY="${workspace_dir}"
-  "$DOCTOR_BIN" "$@"
+  "$bin_path" "$@"
 }
 
 main() {
@@ -30,30 +33,30 @@ main() {
   make_workspace "$workspace_dir"
 
   (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
-    run_doctor "$workspace_dir"
+    run_doctor "$DOCTOR_BIN" "$workspace_dir"
   ) >"$output_file"
 
   grep -q "profile: repo_dev_profile" "$output_file" || fail "doctor omitted profile"
   grep -q "agent_binary: found" "$output_file" || fail "doctor did not find binary"
-  grep -q "OPENAI_API_KEY: set" "$output_file" || fail "doctor did not report credential"
   grep -q "status=ok" "$output_file" || fail "doctor did not validate skill bundle"
+  if grep -q "OPENAI_API_KEY" "$output_file"; then
+    fail "codex doctor unexpectedly required OPENAI_API_KEY"
+  fi
 
   if (
-    unset OPENAI_API_KEY
-    export CODEX_BIN=/usr/bin/true
-    run_doctor "$workspace_dir"
+    unset ANTHROPIC_API_KEY
+    export CLAUDE_CODE_BIN=/usr/bin/true
+    run_doctor "$CLAUDE_DOCTOR_BIN" "$workspace_dir"
   ) >"$output_file" 2>&1; then
-    fail "doctor succeeded without required credential"
+    fail "claude doctor succeeded without required credential"
   fi
-  grep -q "OPENAI_API_KEY: missing" "$output_file" || fail "doctor missing-credential output incorrect"
+  grep -q "ANTHROPIC_API_KEY: missing" "$output_file" || fail "claude doctor missing-credential output incorrect"
 
   if (
     unset CODEX_BIN
-    export OPENAI_API_KEY=test
     export PATH=/usr/bin:/bin
-    run_doctor "$workspace_dir"
+    run_doctor "$DOCTOR_BIN" "$workspace_dir"
   ) >"$output_file" 2>&1; then
     fail "doctor succeeded without agent binary"
   fi

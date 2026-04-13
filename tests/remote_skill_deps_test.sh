@@ -101,7 +101,6 @@ agent_profile(
         "@remote_root_and_child_skills//:child_skill",
         "@remote_dir_skills//:test_runner",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(

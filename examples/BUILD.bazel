@@ -17,7 +17,6 @@ agent_skill(
 agent_profile(
     name = "repo_dev_profile",
     skills = [":repo_helper"],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(
@@ -32,7 +31,6 @@ agent_profile(
         ":repo_helper",
         ":hello_world",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(

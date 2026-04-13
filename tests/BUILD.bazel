@@ -8,6 +8,16 @@ filegroup(
 )
 
 sh_test(
+    name = "bzlmod_git_override_test",
+    srcs = ["bzlmod_git_override_test.sh"],
+    size = "medium",
+    data = [
+        "//:repo_files",
+        ":fixture_files",
+    ],
+)
+
+sh_test(
     name = "catalog_defaults_test",
     srcs = ["catalog_defaults_test.sh"],
     size = "small",
@@ -21,6 +31,7 @@ sh_test(
     srcs = ["doctor_test.sh"],
     size = "small",
     data = [
+        "//examples:claude_dev_doctor",
         "//examples:codex_dev_doctor",
     ],
 )

@@ -108,7 +108,6 @@ agent_profile(
         ":repo_helper",
         "@codex_registry//:python",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(
@@ -184,7 +183,6 @@ EOF
 
   (
     cd "$workspace_dir"
-    export OPENAI_API_KEY=test-openai
     export CODEX_BIN="$fake_codex_bin"
     export FAKE_CODEX_OUT="$codex_out"
     "$bazel_bin" run //:codex_dev_doctor >/dev/null
@@ -192,7 +190,7 @@ EOF
   )
 
   grep -q "cwd=${workspace_dir}" "$codex_out" || fail "codex runner used wrong cwd"
-  grep -q "openai_api_key=test-openai" "$codex_out" || fail "codex runner did not forward env"
+  grep -q "openai_api_key=$" "$codex_out" || fail "codex runner unexpectedly required OPENAI_API_KEY"
   grep -q "argv=--smoke codex " "$codex_out" || fail "codex runner did not forward args"
   [[ -f "${workspace_dir}/.agents/skills/__bazel_agent_env__codex_profile__main__repo_helper/SKILL.md" ]] || \
     fail "codex install did not materialize local skill"

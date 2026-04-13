@@ -60,7 +60,6 @@ main() {
 
   make_workspace "$install_workspace"
   (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
     run_with_workspace "$install_workspace" "$INSTALL_BIN"
   )
@@ -70,7 +69,6 @@ main() {
   assert_file "${install_workspace}/.agents/skills/.bazel_agent_env_repo_dev_profile.json"
 
   (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
     run_with_workspace "$install_workspace" "$EXTRA_INSTALL_BIN"
   ) >/dev/null
@@ -81,7 +79,6 @@ main() {
     fail "previous profile skill remained after switching profiles"
 
   (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
     run_with_workspace "$install_workspace" "$INSTALL_BIN"
   ) >/dev/null
@@ -93,7 +90,6 @@ main() {
     fail "extra profile hello_world remained after switching back"
 
   (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
     run_with_workspace "$install_workspace" "$INSTALL_BIN"
   ) >/dev/null
@@ -125,7 +121,6 @@ EOF
 }
 EOF
   (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
     run_with_workspace "$install_workspace" "$INSTALL_BIN"
   ) >/dev/null
@@ -158,7 +153,6 @@ EOF
 }
 EOF
   (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
     run_with_workspace "$install_workspace" "$INSTALL_BIN"
   ) >/dev/null
@@ -167,7 +161,6 @@ EOF
   make_workspace "$conflict_workspace"
   mkdir -p "${conflict_workspace}/.agents/skills/${MANAGED_DIR}"
   if (
-    export OPENAI_API_KEY=test
     export CODEX_BIN=/usr/bin/true
     run_with_workspace "$conflict_workspace" "$INSTALL_BIN"
   ) >/dev/null 2>"${TEST_TMPDIR}/conflict.err"; then
@@ -195,7 +188,6 @@ echo path-shadow > "${path_shadow_out}"
 EOF
   chmod +x "${path_shadow_dir}/codex"
   (
-    export OPENAI_API_KEY=test
     export FAKE_CODEX_OUT="$output_file"
     export CODEX_BIN="$fake_codex_bin"
     export PATH="${path_shadow_dir}:/usr/bin:/bin"
@@ -204,7 +196,7 @@ EOF
 
   assert_file "$output_file"
   grep -q "cwd=${start_workspace}" "$output_file" || fail "start used wrong cwd"
-  grep -q "openai_api_key=test" "$output_file" || fail "start did not forward env"
+  grep -q "openai_api_key=$" "$output_file" || fail "start unexpectedly required OPENAI_API_KEY"
   grep -q "argv=--alpha beta " "$output_file" || fail "start did not forward args"
   [[ ! -e "$path_shadow_out" ]] || fail "PATH candidate was used instead of CODEX_BIN override"
   assert_file "${start_workspace}/.agents/skills/${MANAGED_DIR}/SKILL.md"

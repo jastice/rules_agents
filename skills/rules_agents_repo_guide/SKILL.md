@@ -35,10 +35,10 @@ native repo-local agent directory, and launches the agent from the repository ro
 Add `rules_agents` in `MODULE.bazel` and enable the built-in official skill registries:
 
 ```python
-git_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+bazel_dep(name = "rules_agents", version = "0.1.0")
 
-git_repository(
-    name = "rules_agents",
+git_override(
+    module_name = "rules_agents",
     remote = "https://github.com/jastice/rules_agents/",
     branch = "main",
 )
@@ -73,7 +73,6 @@ agent_profile(
     skills = [
         ":repo_helper",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(
@@ -86,7 +85,6 @@ agent_runner(
 Then run:
 
 ```bash
-export OPENAI_API_KEY=...
 bazel run //:codex_dev_doctor
 bazel run //:codex_dev
 ```
@@ -97,6 +95,9 @@ What happens:
 2. `doctor` checks the agent binary, required env vars, and packaged skill bundles.
 3. `run` installs the declared skills under `.agents/skills`.
 4. the launcher starts `codex` from the repository root.
+
+Codex does not need `OPENAI_API_KEY` in the default example. That keeps normal in-agent login
+flows working. Declare `credential_env` only when a skill or repo-local tool explicitly needs it.
 
 For Claude Code, switch only the runner and credential env:
 
@@ -151,7 +152,6 @@ agent_profile(
         ":repo_helper",
         "@community_skills//:test_runner",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 ```
 
@@ -219,7 +219,6 @@ agent_profile(
         ":repo_helper",
         "@community_skills//:test_runner",
     ],
-    credential_env = ["OPENAI_API_KEY"],
 )
 ```
 
@@ -268,7 +267,6 @@ Example source declarations live in `examples/BUILD.bazel`:
 agent_profile(
     name = "repo_dev_profile",
     skills = [":repo_helper"],
-    credential_env = ["OPENAI_API_KEY"],
 )
 
 agent_runner(
