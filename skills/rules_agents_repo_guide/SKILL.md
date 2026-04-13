@@ -31,7 +31,7 @@ native repo-local agent directory, and launches the agent from the repository ro
 
 ## 2. Batteries-Included Quickstart
 
-Add `rules_agents` in `MODULE.bazel`:
+Add `rules_agents` in `MODULE.bazel` and enable the built-in skill registries:
 
 ```python
 bazel_dep(name = "rules_agents")
@@ -41,9 +41,29 @@ archive_override(
     urls = ["https://github.com/you/rules_agents/archive/COMMIT.tar.gz"],
     strip_prefix = "rules_agents-COMMIT",
 )
+
+skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
+
+skill_deps.registries()
+
+skill_deps.remote(
+    name = "openai_skills",
+    url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
+    strip_prefix = "skills-0123456789abcdef",
+)
+
+use_repo(skill_deps, "openai_skills", "rules_agents_registry_index")
 ```
 
-Declare one local skill plus one profile and runner in a `BUILD.bazel` file:
+List the built-in registries and discover a skill:
+
+```bash
+bazel run @rules_agents_registry_index//:list_skills
+bazel run @rules_agents_registry_index//:list_skills -- --agent=codex
+```
+
+Declare one local skill, one discovered remote skill, one profile, and one runner in a
+`BUILD.bazel` file:
 
 ```python
 load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
@@ -56,7 +76,10 @@ agent_skill(
 
 agent_profile(
     name = "repo_dev_profile",
-    skills = [":repo_helper"],
+    skills = [
+        ":repo_helper",
+        "@openai_skills//:python",
+    ],
     credential_env = ["OPENAI_API_KEY"],
 )
 
@@ -77,9 +100,10 @@ bazel run //:codex_dev
 
 What happens:
 
-1. `doctor` checks the agent binary, required env vars, and packaged skill bundles.
-2. `run` installs the declared skills under `.agents/skills`.
-3. the launcher starts `codex` from the repository root.
+1. `list_skills` lets the repo browse the bundled registries before pinning a remote archive.
+2. `doctor` checks the agent binary, required env vars, and packaged skill bundles.
+3. `run` installs the declared skills under `.agents/skills`.
+4. the launcher starts `codex` from the repository root.
 
 For Claude Code, switch only the runner and credential env:
 
