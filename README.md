@@ -5,7 +5,7 @@
 In your Bazel repo, tell your agent:
 ```
 Follow this guide to install rules_agents into this Bazel repo:
-https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents_repo_guide/SKILL.md
+https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents_usage/SKILL.md
 ```
 
 ## About
@@ -16,7 +16,7 @@ launch it with one command.
 Basic features:
 
 - Configure an agent profile with a set of skills.
-- Skills may be resolved from a registry. Official OpenAI and Anthropic registries are included by default.
+- Skills may be resolved from a registry. Default registries include this repo's setup and usage skills plus the official OpenAI and Anthropic catalogs.
 - Registry archive pins can be refreshed with `@rules_agents//tools:update_registries`.
 - Run an agent with a profile as Bazel target. Multiple agents may share the same skill profile.
 
@@ -115,8 +115,8 @@ agent_runner(
 
 That gives the repo one buildable profile artifact plus one runnable Codex runner.
 
-If the repo also wants to reuse skills published from another repository, add a module
-extension entry in `MODULE.bazel`:
+For the fastest batteries-included setup, install the usage skill from this repo and verify with
+one command.
 
 In `MODULE.bazel`, bring in `rules_agents`:
 
@@ -131,43 +131,39 @@ git_override(
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries()
-use_repo(skill_deps, "rules_agents_registry_index")
+skill_deps.remote(
+    name = "rules_agents_skills",
+    url = "https://github.com/jastice/rules_agents/archive/refs/heads/main.tar.gz",
+    strip_prefix = "rules_agents-main",
+    skill_path_prefix = "skills",
+)
+use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")
 ```
 
-In a BUILD file, declare one local skill and one profile:
+In a BUILD file, start with the usage skill:
 
 ```python
-load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
-
-agent_skill(
-    name = "bazel_debug_skill",
-    root = "skills/bazel_debug",
-    srcs = glob(["skills/bazel_debug/**"], exclude_directories = 1),
-)
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner")
 
 agent_profile(
-    name = "repo_dev_profile",
-    skills = [
-        ":bazel_debug_skill",
-    ],
+    name = "dev_profile",
+    skills = ["@rules_agents_skills//:rules_agents_usage"],
 )
 
 agent_runner(
-    name = "codex_dev",
+    name = "dev",
     runner = "codex",
-    profile = ":repo_dev_profile",
+    profile = ":dev_profile",
 )
 ```
 
-Then the available user commands are:
+Verify with one command:
 
 ```bash
-bazel build //agent:repo_dev_profile
-bazel run //agent:codex_dev_doctor
-bazel run //agent:codex_dev_setup
-bazel run //agent:codex_dev
-bazel run //agent:codex_dev -- --help
+bazel run //:dev_doctor
 ```
+
+After that, add repo-local skills or discovered remote skills to the same `agent_profile`.
 
 ## Skill Registry Workflow
 
@@ -202,6 +198,7 @@ its normal module-extension machinery.
 
 The default catalog includes:
 
+- `rules_agents_skills` for setup and usage skills shipped in this repository, discovered under `skills`
 - `openai_skills` for Codex skills from `openai/skills`, discovered under `skills/.curated`
 - `anthropic_skills` for Claude Code skills from `anthropics/skills`, discovered under `skills`
 

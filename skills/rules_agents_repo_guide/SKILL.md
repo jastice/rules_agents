@@ -10,7 +10,7 @@ from the workspace root. Keep the model narrow:
 - supported runners: `codex`, `claude_code`
 - repo-local install roots: `.agents/skills`, `.claude/skills`
 - public API: `agent_skill`, `agent_profile`, `agent_runner`, `skill_deps`
-- built-in registries: `openai_skills` and `anthropic_skills`
+- built-in registries: `rules_agents_skills`, `openai_skills`, and `anthropic_skills`
 
 ## 1. Short Overview
 
@@ -32,7 +32,7 @@ native repo-local agent directory, and launches the agent from the repository ro
 
 ## 2. Batteries-Included Quickstart
 
-Add `rules_agents` in `MODULE.bazel` and enable the built-in official skill registries:
+Add `rules_agents` in `MODULE.bazel`, install the built-in usage skill, and enable registry discovery:
 
 ```python
 bazel_dep(name = "rules_agents", version = "0.1.0")
@@ -47,7 +47,14 @@ skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_
 
 skill_deps.registries()
 
-use_repo(skill_deps, "rules_agents_registry_index")
+skill_deps.remote(
+    name = "rules_agents_skills",
+    url = "https://github.com/jastice/rules_agents/archive/refs/heads/main.tar.gz",
+    strip_prefix = "rules_agents-main",
+    skill_path_prefix = "skills",
+)
+
+use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")
 ```
 
 List the built-in registries and discover a skill:
@@ -57,27 +64,19 @@ bazel run @rules_agents_registry_index//:list_skills
 bazel run @rules_agents_registry_index//:list_skills -- --agent=codex
 ```
 
-Declare one local skill, one profile, and one runner in a `BUILD.bazel` file:
+Declare one profile and one runner in a `BUILD.bazel` file:
 
 ```python
-load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
-
-agent_skill(
-    name = "repo_helper",
-    root = "skills/repo_helper",
-    srcs = glob(["skills/repo_helper/**"], exclude_directories = 1),
-)
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner")
 
 agent_profile(
-    name = "repo_dev_profile",
-    skills = [
-        ":repo_helper",
-    ],
+    name = "dev_profile",
+    skills = ["@rules_agents_skills//:rules_agents_usage"],
 )
 
 agent_runner(
-    name = "codex_dev",
-    profile = ":repo_dev_profile",
+    name = "dev",
+    profile = ":dev_profile",
     runner = "codex",
 )
 ```
@@ -85,23 +84,21 @@ agent_runner(
 Then run:
 
 ```bash
-bazel run //:codex_dev_doctor
-bazel run //:codex_dev
+bazel run //:dev_doctor
 ```
 
 What happens:
 
-1. `list_skills` lets the repo browse the bundled registries before pinning a remote archive.
+1. `rules_agents_usage` is installed as the first managed skill.
 2. `doctor` checks the agent binary, required env vars, and packaged skill bundles.
-3. `run` installs the declared skills under `.agents/skills`.
-4. the launcher starts `codex` from the repository root.
+3. the setup is verified without launching the agent.
 
 For Claude Code, switch only the runner:
 
 ```python
 agent_profile(
     name = "claude_dev_profile",
-    skills = [":repo_helper"],
+    skills = ["@rules_agents_skills//:rules_agents_usage"],
 )
 
 agent_runner(
@@ -115,6 +112,8 @@ Install path:
 
 - `codex`: `<repo>/.agents/skills`
 - `claude_code`: `<repo>/.claude/skills`
+
+After that, add repo-local skills or discovered remote skills to the same `agent_profile`.
 
 ## 3. Full API Reference
 

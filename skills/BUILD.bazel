@@ -7,3 +7,9 @@ agent_skill(
     root = "rules_agents_repo_guide",
     srcs = glob(["rules_agents_repo_guide/**"], exclude_directories = 1),
 )
+
+agent_skill(
+    name = "rules_agents_usage",
+    root = "rules_agents_usage",
+    srcs = glob(["rules_agents_usage/**"], exclude_directories = 1),
+)

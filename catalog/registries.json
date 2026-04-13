@@ -2,6 +2,19 @@
   "version": 1,
   "registries": [
     {
+      "id": "rules_agents_skills",
+      "display_name": "rules_agents Skills",
+      "homepage": "https://github.com/jastice/rules_agents",
+      "repo_url": "https://github.com/jastice/rules_agents",
+      "archive_url": "https://github.com/jastice/rules_agents/archive/refs/heads/main.tar.gz",
+      "strip_prefix": "rules_agents-main",
+      "default_branch": "main",
+      "agents": ["claude_code", "codex"],
+      "skill_path_prefix": "skills",
+      "description": "Setup and usage skills shipped with rules_agents.",
+      "link_format": "github_tree"
+    },
+    {
       "id": "anthropic_skills",
       "display_name": "Anthropic Skills",
       "homepage": "https://github.com/anthropics/skills",
