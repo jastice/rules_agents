@@ -10,6 +10,7 @@ from the workspace root. Keep the model narrow:
 - supported runners: `codex`, `claude_code`
 - repo-local install roots: `.agents/skills`, `.claude/skills`
 - public API: `agent_skill`, `agent_profile`, `agent_runner`, `skill_deps`
+- built-in registries: `openai_skills` and `anthropic_skills`
 
 ## 1. Short Overview
 
@@ -31,7 +32,7 @@ native repo-local agent directory, and launches the agent from the repository ro
 
 ## 2. Batteries-Included Quickstart
 
-Add `rules_agents` in `MODULE.bazel` and enable the built-in skill registries:
+Add `rules_agents` in `MODULE.bazel` and enable the built-in official skill registries:
 
 ```python
 bazel_dep(name = "rules_agents")
@@ -254,6 +255,9 @@ bazel run @rules_agents_registry_index//:list_skills -- --agent=codex
 bazel run @rules_agents//tools:update_registries
 bazel run @rules_agents//tools:update_registries -- --apply
 ```
+
+`update_registries` refreshes GitHub archive pins. Use `--catalog=tools/rules_agents/registries.json`
+when you want to rewrite a repository-owned override file instead of the catalog in this repo.
 
 ## 4. Examples
 

@@ -42,7 +42,7 @@
           "archive_url": {
             "type": "string",
             "minLength": 1,
-            "description": "Exact pinned archive URL used for fetch and discovery. Must not float."
+            "description": "Archive URL used for fetch and discovery. Maintainers should pin it with update_registries."
           },
           "strip_prefix": {
             "type": "string",

@@ -2,6 +2,20 @@ package(default_visibility = ["//visibility:public"])
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+filegroup(
+    name = "fixture_files",
+    srcs = glob(["fixtures/**/*"]),
+)
+
+sh_test(
+    name = "catalog_defaults_test",
+    srcs = ["catalog_defaults_test.sh"],
+    size = "small",
+    data = [
+        "//catalog:registries.json",
+    ],
+)
+
 sh_test(
     name = "doctor_test",
     srcs = ["doctor_test.sh"],
@@ -24,5 +38,46 @@ sh_test(
         "//examples:codex_dev_run",
         "//examples:fake_claude.sh",
         "//examples:fake_codex.sh",
+    ],
+)
+
+sh_test(
+    name = "registry_discovery_test",
+    srcs = ["registry_discovery_test.sh"],
+    size = "medium",
+    data = [
+        "//:repo_files",
+        ":fixture_files",
+    ],
+)
+
+sh_test(
+    name = "remote_skill_deps_test",
+    srcs = ["remote_skill_deps_test.sh"],
+    size = "medium",
+    data = [
+        "//:repo_files",
+        ":fixture_files",
+    ],
+)
+
+sh_test(
+    name = "repo_smoke_test",
+    srcs = ["repo_smoke_test.sh"],
+    size = "medium",
+    data = [
+        "//:repo_files",
+        ":fixture_files",
+        "//examples:fake_claude.sh",
+        "//examples:fake_codex.sh",
+    ],
+)
+
+sh_test(
+    name = "update_registries_test",
+    srcs = ["update_registries_test.sh"],
+    size = "small",
+    data = [
+        "//tools:update_registries",
     ],
 )

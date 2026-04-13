@@ -1,1 +1,9 @@
 package(default_visibility = ["//visibility:public"])
+
+load("@rules_python//python:py_binary.bzl", "py_binary")
+
+py_binary(
+    name = "update_registries",
+    srcs = ["update_registries.py"],
+    data = ["//catalog:registries.json"],
+)

@@ -2,7 +2,17 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  if [[ "$link" = /* ]]; then
+    self="$link"
+  else
+    self="$(dirname "$self")/$link"
+  fi
+done
+
+readonly SCRIPT_DIR="$(cd "$(dirname "$self")" && pwd)"
 readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly REGISTRY_FIXTURE="${REPO_ROOT}/tests/fixtures/registry_repo"
 readonly REGISTRY_ALT_FIXTURE="${REPO_ROOT}/tests/fixtures/registry_repo_alt"
@@ -34,7 +44,7 @@ pack_archive() {
   tar -czf "$output_path" -C "$source_dir" .
 }
 
-# --- Test: built-in registries only (empty catalog → no output) ---
+# --- Test: explicit empty replace config disables built-in registries ---
 
 test_empty_builtins() {
   local bazel_bin="$1"
@@ -42,7 +52,14 @@ test_empty_builtins() {
   local workspace_dir="${tmp_root}/empty-builtins"
   local output_file="${tmp_root}/empty-builtins-output.txt"
 
-  mkdir -p "$workspace_dir"
+  mkdir -p "${workspace_dir}/tools/rules_agents"
+
+  cat > "${workspace_dir}/tools/rules_agents/registries.json" <<'EOF'
+{
+  "version": 1,
+  "registries": []
+}
+EOF
 
   cat > "${workspace_dir}/MODULE.bazel" <<EOF
 module(name = "registry_test_empty")
@@ -54,11 +71,16 @@ local_path_override(
 )
 
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
-skill_deps.registries()
+skill_deps.registries(
+    config = "//tools/rules_agents:registries.json",
+    mode = "replace",
+)
 use_repo(skill_deps, "rules_agents_registry_index")
 EOF
 
   : > "${workspace_dir}/BUILD.bazel"
+  : > "${workspace_dir}/tools/BUILD.bazel"
+  : > "${workspace_dir}/tools/rules_agents/BUILD.bazel"
 
   (
     cd "$workspace_dir"
@@ -113,7 +135,7 @@ local_path_override(
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries(
     config = "//tools/rules_agents:registries.json",
-    mode = "extend",
+    mode = "replace",
 )
 use_repo(skill_deps, "rules_agents_registry_index")
 EOF
@@ -219,7 +241,7 @@ local_path_override(
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries(
     config = "//tools/rules_agents:registries.json",
-    mode = "extend",
+    mode = "replace",
 )
 use_repo(skill_deps, "rules_agents_registry_index")
 EOF
@@ -285,7 +307,7 @@ local_path_override(
 skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
 skill_deps.registries(
     config = "//tools/rules_agents:registries.json",
-    mode = "extend",
+    mode = "replace",
 )
 use_repo(skill_deps, "rules_agents_registry_index")
 EOF

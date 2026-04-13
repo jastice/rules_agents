@@ -1,5 +1,39 @@
 package(default_visibility = ["//visibility:public"])
 
+filegroup(
+    name = "repo_files",
+    srcs = glob([
+        "AGENTS.md",
+        "BUILD.bazel",
+        "MODULE.bazel",
+        "MODULE.bazel.lock",
+        "README.md",
+        "agent/BUILD.bazel",
+        "agent/*",
+        "agent/**/*",
+        "catalog/BUILD.bazel",
+        "catalog/*",
+        "catalog/**/*",
+        "examples/BUILD.bazel",
+        "examples/*",
+        "examples/**/*",
+        "rules_agents/BUILD.bazel",
+        "rules_agents/*",
+        "rules_agents/**/*",
+        "rules_agents/private/BUILD.bazel",
+        "rules_agents/runtime/BUILD.bazel",
+        "skills/BUILD.bazel",
+        "skills/*",
+        "skills/**/*",
+        "tests/BUILD.bazel",
+        "tests/fixtures/*",
+        "tests/fixtures/**/*",
+        "tools/BUILD.bazel",
+        "tools/*",
+        "tools/**/*",
+    ], allow_empty = True),
+)
+
 exports_files([
     "MODULE.bazel",
     "README.md",

@@ -6,8 +6,8 @@ launch it with one command.
 Basic features:
 
 - Configure an agent profile with a set of skills.
-- Skills may be resolved from a registry. Codex and Claude Code registries are included by default.
-- Skills can be automatically updated from the registry.
+- Skills may be resolved from a registry. Official OpenAI and Anthropic registries are included by default.
+- Registry archive pins can be refreshed with `@rules_agents//tools:update_registries`.
 - Run an agent with a profile as Bazel target. Multiple agents may share the same skill profile.
 
 The user experience is simple:
@@ -192,8 +192,13 @@ skill_deps.registries()
 use_repo(skill_deps, "rules_agents_registry_index")
 ```
 
-That enables the built-in curated registries and lets Bazel cache registry resolution through
+That enables the built-in official registries and lets Bazel cache registry resolution through
 its normal module-extension machinery.
+
+The default catalog includes:
+
+- `openai_skills` for Codex skills from `openai/skills`, discovered under `skills/.curated`
+- `anthropic_skills` for Claude Code skills from `anthropics/skills`, discovered under `skills`
 
 `skill_deps.registries()` is for discovery only. It does not create usable external skill
 repos by itself and does not replace `skill_deps.remote(...)`.
@@ -283,8 +288,7 @@ Use `mode = "extend"` to add repo-specific registries on top of the built-ins. U
 
 ### 5. Explicitly update registry pins
 
-Listing skills never changes registry pins. To check for newer upstream revisions, run the
-separate maintainer command:
+Listing skills never changes registry pins. To check for newer upstream revisions, run:
 
 ```bash
 bazel run @rules_agents//tools:update_registries
@@ -296,7 +300,7 @@ To check one registry only:
 bazel run @rules_agents//tools:update_registries -- --registry=openai_skills
 ```
 
-To apply the proposed pin updates to the repo-owned registry config:
+To apply the proposed pin updates to the current workspace catalog:
 
 ```bash
 bazel run @rules_agents//tools:update_registries -- --apply
@@ -311,10 +315,10 @@ bazel run @rules_agents//tools:update_registries -- --registry=openai_skills --a
 After the pin changes, rerun `bazel run @rules_agents_registry_index//:list_skills` or your
 normal profile targets. Bazel handles cache invalidation and lockfile updates itself.
 
-`--apply` only rewrites repo-owned config in the current workspace, such as
-`tools/rules_agents/registries.json`. It does not modify the built-in registry catalog
-shipped inside the external `rules_agents` dependency. To pick up newer built-in registry
-pins, bump the `rules_agents` version your repository depends on.
+`--apply` rewrites a workspace-owned catalog file. By default that means
+`catalog/registries.json` when you run it from this repository. In a consuming repository,
+pass `--catalog=tools/rules_agents/registries.json` or another writable path. It does not
+modify the read-only built-in catalog shipped inside an external `rules_agents` dependency.
 
 ## Public API
 

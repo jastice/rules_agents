@@ -266,7 +266,7 @@ def _extract_revision_from_archive_url(url):
 def _is_hex_sha_prefix(text):
     if len(text) < 7 or len(text) > 40:
         return False
-    for char in text:
+    for char in text.elems():
         if char not in "0123456789abcdef":
             return False
     return True

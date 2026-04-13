@@ -1,4 +1,31 @@
 {
   "version": 1,
-  "registries": []
+  "registries": [
+    {
+      "id": "anthropic_skills",
+      "display_name": "Anthropic Skills",
+      "homepage": "https://github.com/anthropics/skills",
+      "repo_url": "https://github.com/anthropics/skills",
+      "archive_url": "https://github.com/anthropics/skills/archive/refs/heads/main.tar.gz",
+      "strip_prefix": "skills-main",
+      "default_branch": "main",
+      "agents": ["claude_code"],
+      "skill_path_prefix": "skills",
+      "description": "Official Anthropic Claude Code skills registry.",
+      "link_format": "github_tree"
+    },
+    {
+      "id": "openai_skills",
+      "display_name": "OpenAI Skills",
+      "homepage": "https://github.com/openai/skills",
+      "repo_url": "https://github.com/openai/skills",
+      "archive_url": "https://github.com/openai/skills/archive/refs/heads/main.tar.gz",
+      "strip_prefix": "skills-main",
+      "default_branch": "main",
+      "agents": ["codex"],
+      "skill_path_prefix": "skills/.curated",
+      "description": "Official OpenAI Codex skills registry.",
+      "link_format": "github_tree"
+    }
+  ]
 }

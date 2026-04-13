@@ -2,7 +2,17 @@
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+self="${BASH_SOURCE[0]}"
+while [[ -L "$self" ]]; do
+  link="$(readlink "$self")"
+  if [[ "$link" = /* ]]; then
+    self="$link"
+  else
+    self="$(dirname "$self")/$link"
+  fi
+done
+
+readonly SCRIPT_DIR="$(cd "$(dirname "$self")" && pwd)"
 readonly REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly REMOTE_ROOT_FIXTURE="${REPO_ROOT}/tests/fixtures/remote_repo_root"
 readonly REMOTE_DIRS_FIXTURE="${REPO_ROOT}/tests/fixtures/remote_repo_dirs"
