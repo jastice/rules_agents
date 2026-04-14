@@ -3,6 +3,8 @@
 Use this path when the goal is: install `rules_agents` into a Bazel repo, get one working
 skill, and verify the setup with the fewest decisions.
 
+Current platform scope: Linux and macOS are supported. Windows is not supported yet.
+
 ## 1. Add `rules_agents` to `MODULE.bazel`
 
 ```python

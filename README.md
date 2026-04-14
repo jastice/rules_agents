@@ -49,6 +49,7 @@ declare what you want, let the tool handle the rest.
 
 Before using `rules_agents`, a developer should already have:
 
+- a supported Unix-like host environment; current support is Linux and macOS, not Windows
 - one supported agent client installed separately
 - any required agent login or auth state handled by that client
 - OR: required credential environment variables exported in the shell

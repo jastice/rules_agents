@@ -8,6 +8,7 @@ description: Use when installing rules_agents into a Bazel repo, verifying the s
 Use this skill for repo-scoped agent setup in Bazel. Keep the flow narrow:
 
 - supported runners: `codex`, `claude_code`
+- supported host platforms: Linux and macOS; Windows is not supported yet
 - repo-local install roots: `.agents/skills`, `.claude/skills`
 - public API: `agent_skill`, `agent_profile`, `agent_runner`, `skill_deps`
 

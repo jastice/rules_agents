@@ -5,9 +5,12 @@ filegroup(
     srcs = glob([
         "AGENTS.md",
         "BUILD.bazel",
+        "LICENSE",
         "MODULE.bazel",
         "MODULE.bazel.lock",
         "README.md",
+        "bcr/*",
+        "bcr/**/*",
         "agent/BUILD.bazel",
         "agent/*",
         "agent/**/*",
@@ -35,6 +38,7 @@ filegroup(
 )
 
 exports_files([
+    "LICENSE",
     "MODULE.bazel",
     "README.md",
 ])

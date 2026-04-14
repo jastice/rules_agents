@@ -3,6 +3,8 @@
 Use this guide after the quickstart is working or when the user already has `rules_agents`
 installed and needs a specific configuration flow.
 
+Current platform scope: Linux and macOS are supported. Windows is not supported yet.
+
 ## Discovering Skills from Registries
 
 Enable registry discovery in `MODULE.bazel`:

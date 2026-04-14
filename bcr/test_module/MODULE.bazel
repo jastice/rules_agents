@@ -1,0 +1,9 @@
+module(name = "rules_agents_bcr_test")
+
+bazel_dep(name = "rules_agents", version = "0.1.0")
+bazel_dep(name = "rules_python", version = "1.7.0")
+
+local_path_override(
+    module_name = "rules_agents",
+    path = "../..",
+)

@@ -52,6 +52,7 @@ Keep the implementation narrow and boring:
 
 - install Codex skills under `.agents/skills`
 - install Claude Code skills under `.claude/skills`
+- support Linux and macOS; do not claim Windows support unless the code, docs, and tests are updated together
 - rely on normal repository-root discovery for both clients
 - do not depend on `CODEX_HOME` for Codex skill installation
 - do not synthesize a global Claude home
@@ -64,6 +65,38 @@ Avoid:
 - broad abstractions over the current two-client model
 - writing outside repo-managed install roots unless the task explicitly requires it
 
+## BCR Readiness
+
+Treat Bazel Central Registry compatibility as a maintained repo constraint, not a release-time cleanup.
+
+Keep these repo facts true:
+
+- the root `LICENSE` file exists and stays current; use Apache 2.0 unless the user explicitly changes licensing
+- `MODULE.bazel` keeps an explicit `version` and `compatibility_level`
+- public docs describe released-module consumption accurately
+- platform claims stay explicit: Linux and macOS are supported, Windows is not supported yet
+- examples and tests do not imply unsupported platforms work
+
+When changing released-module behavior:
+
+- prefer `bazel_dep(...)` as the default documented install path for released usage
+- keep `git_override(...)`, branch tarballs, and other unreleased-source flows clearly marked as development-only paths
+- do not make the README or quickstart depend on `main` branch artifacts as the primary path once a released path exists
+- keep versioned snippets aligned with the current module version
+
+When preparing or maintaining BCR publication:
+
+- use immutable source archives for published versions; do not point BCR metadata at branches
+- cut and use git tags for published versions
+- keep any checked-in BCR test module representative of a real consumer flow
+- keep BCR presubmit scope aligned with actual support; for now that means no Windows task
+
+If the repo gains BCR metadata files or presubmit config, treat them like first-class source:
+
+- update them whenever module version, source layout, supported Bazel versions, or platform scope changes
+- keep them consistent with `README.md`, examples, and test coverage
+- do not broaden the presubmit matrix beyond what the repo is actually validating
+
 ## Where To Look First
 
 Key files and directories:
@@ -75,6 +108,8 @@ Key files and directories:
 - `examples/BUILD.bazel`: smallest working local examples for both supported agents
 - `agent/BUILD.bazel`: top-level example aliases like `//agent:dev`
 - `catalog/registries.json`: built-in registry catalog
+- `bcr/presubmit.yml`: checked-in BCR presubmit template for this repo
+- `bcr/test_module/`: checked-in consumer module for BCR-style validation
 - `skills/rules_agents/`: the maintained repo skill bundle
 - `skills/rules_agents/references/quickstart.md`: shortest onboarding path
 - `skills/rules_agents/references/usage.md`: registry, local skill, profile, and runner usage
@@ -91,6 +126,7 @@ When making changes:
 - keep naming aligned with the current code and README
 - update docs and examples when public behavior changes
 - keep the skill docs, README, examples, and tests consistent with each other
+- keep BCR-facing metadata, docs, and test-module expectations consistent with the current release story
 
 If you change onboarding or skill discovery behavior, check all of:
 
@@ -99,6 +135,15 @@ If you change onboarding or skill discovery behavior, check all of:
 - `skills/rules_agents/references/quickstart.md`
 - `skills/rules_agents/references/usage.md`
 - registry-related tests and examples
+
+If you change release metadata, platform support, or published-module setup guidance, also check all of:
+
+- `LICENSE`
+- `MODULE.bazel`
+- `AGENTS.md`
+- `bcr/presubmit.yml`
+- `bcr/test_module/`
+- any future `metadata.json` or `source.json` files once they exist
 
 ## Validation Expectations
 
@@ -114,6 +159,14 @@ Common checks:
 - install and launch behavior: `bazel test //tests:install_start_test`
 - broader consumer flow: `bazel test //tests:repo_smoke_test`
 
+For BCR-facing changes, prefer validating:
+
+- `bazel build //:codex_dev_manifest //:claude_dev_manifest` from `bcr/test_module`
+- `bazel test //:bcr_smoke_test` from `bcr/test_module`
+- `bazel test //tests:repo_smoke_test`
+- `bazel test //tests:bzlmod_git_override_test`
+- `bazel test //tests:catalog_defaults_test`
+
 If runnable code exists, prioritize validating:
 
 - skill bundle packaging rules
@@ -127,6 +180,8 @@ If runnable code exists, prioritize validating:
 - Keep README examples consistent with what actually passes in tests.
 - Do not present historical spec language as current behavior.
 - If a documented quickstart is known to require a workaround, fix the guide or note the limitation explicitly instead of leaving it implied.
+- Keep released usage docs centered on stable versioned module consumption.
+- Do not imply Windows support in docs until the implementation and validation actually support it.
 
 ## Final Handoff
 

@@ -1,0 +1,47 @@
+load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner", "agent_skill")
+load("@rules_python//python:py_test.bzl", "py_test")
+
+agent_skill(
+    name = "repo_helper",
+    root = "skills/repo_helper",
+    srcs = glob(["skills/repo_helper/**"], exclude_directories = 1),
+)
+
+agent_profile(
+    name = "codex_profile",
+    skills = [":repo_helper"],
+)
+
+agent_runner(
+    name = "codex_dev",
+    profile = ":codex_profile",
+    runner = "codex",
+)
+
+agent_profile(
+    name = "claude_profile",
+    skills = [":repo_helper"],
+    credential_env = ["ANTHROPIC_API_KEY"],
+)
+
+agent_runner(
+    name = "claude_dev",
+    profile = ":claude_profile",
+    runner = "claude_code",
+)
+
+py_test(
+    name = "bcr_smoke_test",
+    main = "smoke_test.py",
+    srcs = ["smoke_test.py"],
+    data = [
+        ":claude_dev_doctor",
+        ":claude_dev_run",
+        ":claude_dev_setup",
+        ":codex_dev_doctor",
+        ":codex_dev_run",
+        ":codex_dev_setup",
+        "fake_claude.sh",
+        "fake_codex.sh",
+    ],
+)
