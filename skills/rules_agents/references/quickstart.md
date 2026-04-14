@@ -9,32 +9,9 @@ Current platform scope: Linux and macOS are supported. Windows is not supported 
 
 ```python
 bazel_dep(name = "rules_agents", version = "0.1.0")
-
-git_override(
-    module_name = "rules_agents",
-    remote = "https://github.com/jastice/rules_agents/",
-    branch = "main",
-)
-
-skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
-
-skill_deps.registries()
-skill_deps.remote(
-    name = "rules_agents_skills",
-    url = "https://github.com/jastice/rules_agents/archive/refs/heads/main.tar.gz",
-    skill_path_prefix = "skills",
-)
-
-use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")
 ```
 
-Why both calls:
-
-- `skill_deps.registries()` enables registry discovery commands.
-- `skill_deps.remote(...)` makes this repo's published skill bundle usable in `agent_profile(...)`.
-- `strip_prefix` is not needed for standard GitHub archives; `rules_agents` auto-detects the
-  archive wrapper directory and keeps `skill_path_prefix = "skills"` stable across branch, tag,
-  and commit tarballs.
+That is enough for released usage from the published module.
 
 ## 2. Declare one profile and one runner in `BUILD.bazel`
 
@@ -43,7 +20,7 @@ load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner")
 
 agent_profile(
     name = "dev_profile",
-    skills = ["@rules_agents_skills//:rules_agents"],
+    skills = ["@rules_agents//skills:rules_agents"],
 )
 
 agent_runner(
@@ -55,6 +32,17 @@ agent_runner(
 
 Use `codex` for repo-local installs under `.agents/skills`.
 Use `claude_code` for repo-local installs under `.claude/skills`.
+
+If you need unreleased repository changes instead of the published module, add this
+development-only override to `MODULE.bazel`:
+
+```python
+git_override(
+    module_name = "rules_agents",
+    remote = "https://github.com/jastice/rules_agents/",
+    branch = "main",
+)
+```
 
 ## 3. Verify before launching
 

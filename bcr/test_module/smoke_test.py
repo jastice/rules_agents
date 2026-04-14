@@ -70,6 +70,12 @@ def assert_contains(path: Path, expected: str, message: str) -> None:
         fail(f"{message}: {expected!r} not found in {path}")
 
 
+def assert_skill_count(root: Path, expected_count: int, message: str) -> None:
+    skill_count = len(list(root.glob("*/SKILL.md")))
+    if skill_count != expected_count:
+        fail(f"{message}: expected {expected_count}, found {skill_count}")
+
+
 def main() -> None:
     test_tmpdir = Path(os.environ["TEST_TMPDIR"])
     codex_workspace = test_tmpdir / "codex-workspace"
@@ -109,6 +115,11 @@ def main() -> None:
     assert_contains(codex_output, "argv=--alpha beta ", "codex run did not forward args")
     if not (codex_workspace / ".agents" / "skills" / CODEX_MANAGED_DIR / "SKILL.md").is_file():
         fail("codex install did not materialize the local skill")
+    assert_skill_count(
+        codex_workspace / ".agents" / "skills",
+        2,
+        "codex install did not materialize both declared skills",
+    )
 
     make_workspace(claude_workspace)
     run_with_workspace(
@@ -142,6 +153,11 @@ def main() -> None:
     assert_contains(claude_output, "argv=--omega ", "claude run did not forward args")
     if not (claude_workspace / ".claude" / "skills" / CLAUDE_MANAGED_DIR / "SKILL.md").is_file():
         fail("claude install did not materialize the local skill")
+    assert_skill_count(
+        claude_workspace / ".claude" / "skills",
+        2,
+        "claude install did not materialize both declared skills",
+    )
 
 
 if __name__ == "__main__":

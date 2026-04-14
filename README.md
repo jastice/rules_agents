@@ -112,35 +112,16 @@ In `MODULE.bazel`, bring in `rules_agents`:
 
 ```python
 bazel_dep(name = "rules_agents", version = "0.1.0")
-
-git_override(
-    module_name = "rules_agents",
-    remote = "https://github.com/jastice/rules_agents/",
-    branch = "main",
-)
-
-skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_deps")
-skill_deps.registries()
-skill_deps.remote(
-    name = "rules_agents_skills",
-    url = "https://github.com/jastice/rules_agents/archive/refs/heads/main.tar.gz",
-    skill_path_prefix = "skills",
-)
-use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")
 ```
 
-`rules_agents` auto-detects common single-directory archive wrappers such as GitHub's
-`repo-<revision>/` tarball root, so `strip_prefix` is usually unnecessary. Keep it only
-as an override for unusual archive layouts.
-
-In a BUILD file, start with the `rules_agents` skill:
+In a BUILD file, start with the bundled `rules_agents` skill target exposed by the module itself:
 
 ```python
 load("@rules_agents//rules_agents:defs.bzl", "agent_profile", "agent_runner")
 
 agent_profile(
     name = "dev_profile",
-    skills = ["@rules_agents_skills//:rules_agents"],
+    skills = ["@rules_agents//skills:rules_agents"],
 )
 
 agent_runner(
@@ -157,6 +138,17 @@ bazel run //:dev_doctor
 ```
 
 After that, add repo-local skills or discovered remote skills to the same `agent_profile`.
+
+If you need unreleased repository changes instead of the published `0.1.0` module, use
+`git_override(...)` as a development-only path:
+
+```python
+git_override(
+    module_name = "rules_agents",
+    remote = "https://github.com/jastice/rules_agents/",
+    branch = "main",
+)
+```
 
 ## Skill Registry Workflow
 

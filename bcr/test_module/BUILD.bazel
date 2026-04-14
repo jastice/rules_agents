@@ -9,7 +9,10 @@ agent_skill(
 
 agent_profile(
     name = "codex_profile",
-    skills = [":repo_helper"],
+    skills = [
+        ":repo_helper",
+        "@rules_agents//skills:rules_agents",
+    ],
 )
 
 agent_runner(
@@ -20,7 +23,10 @@ agent_runner(
 
 agent_profile(
     name = "claude_profile",
-    skills = [":repo_helper"],
+    skills = [
+        ":repo_helper",
+        "@rules_agents//skills:rules_agents",
+    ],
     credential_env = ["ANTHROPIC_API_KEY"],
 )
 

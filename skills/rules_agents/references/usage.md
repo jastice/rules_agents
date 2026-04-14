@@ -5,6 +5,23 @@ installed and needs a specific configuration flow.
 
 Current platform scope: Linux and macOS are supported. Windows is not supported yet.
 
+## Using the Bundled `rules_agents` Skill
+
+If you only want the maintained skill bundle that ships with this module, no registry or
+remote archive is required. Reference the published skill target directly:
+
+```python
+agent_profile(
+    name = "repo_dev_profile",
+    skills = [
+        "@rules_agents//skills:rules_agents",
+    ],
+)
+```
+
+Use `skill_deps.remote(...)` only when you want skills from another archive or want to
+materialize skills discovered through a registry listing.
+
 ## Discovering Skills from Registries
 
 Enable registry discovery in `MODULE.bazel`:
@@ -120,7 +137,7 @@ agent_profile(
     name = "repo_dev_profile",
     skills = [
         ":repo_helper",
-        "@rules_agents_skills//:rules_agents",
+        "@rules_agents//skills:rules_agents",
     ],
 )
 ```

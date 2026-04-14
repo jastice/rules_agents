@@ -80,6 +80,7 @@ Keep these repo facts true:
 When changing released-module behavior:
 
 - prefer `bazel_dep(...)` as the default documented install path for released usage
+- prefer the bundled `@rules_agents//skills:rules_agents` target for the module's own maintained skill bundle
 - keep `git_override(...)`, branch tarballs, and other unreleased-source flows clearly marked as development-only paths
 - do not make the README or quickstart depend on `main` branch artifacts as the primary path once a released path exists
 - keep versioned snippets aligned with the current module version
@@ -91,6 +92,7 @@ When preparing or maintaining BCR publication:
 - keep any checked-in BCR test module representative of a real consumer flow
 - keep BCR presubmit scope aligned with actual support; for now that means no Windows task
 - keep the root workspace isolated from the nested BCR consumer module so root `bazel build/test //...` does not recurse into `bcr/test_module`
+- keep copy-ready BCR registry metadata under `bcr/modules/`, but exclude that subtree from the release asset hashed by `source.json` to avoid self-referential archive hashes
 
 If the repo gains BCR metadata files or presubmit config, treat them like first-class source:
 
@@ -109,7 +111,9 @@ Key files and directories:
 - `examples/BUILD.bazel`: smallest working local examples for both supported agents
 - `agent/BUILD.bazel`: top-level example aliases like `//agent:dev`
 - `catalog/registries.json`: built-in registry catalog
-- `bcr/presubmit.yml`: checked-in BCR presubmit template for this repo
+- `bcr/modules/rules_agents/metadata.json`: copy-ready BCR module metadata
+- `bcr/modules/rules_agents/0.1.0/source.json`: copy-ready BCR source metadata for the current release
+- `bcr/modules/rules_agents/0.1.0/presubmit.yml`: copy-ready BCR presubmit config for the current release
 - `bcr/test_module/`: checked-in consumer module for BCR-style validation
 - `skills/rules_agents/`: the maintained repo skill bundle
 - `skills/rules_agents/references/quickstart.md`: shortest onboarding path
@@ -142,7 +146,7 @@ If you change release metadata, platform support, or published-module setup guid
 - `LICENSE`
 - `MODULE.bazel`
 - `AGENTS.md`
-- `bcr/presubmit.yml`
+- `bcr/modules/rules_agents/`
 - `bcr/test_module/`
 - any future `metadata.json` or `source.json` files once they exist
 
