@@ -90,6 +90,7 @@ When preparing or maintaining BCR publication:
 - cut and use git tags for published versions
 - keep any checked-in BCR test module representative of a real consumer flow
 - keep BCR presubmit scope aligned with actual support; for now that means no Windows task
+- keep the root workspace isolated from the nested BCR consumer module so root `bazel build/test //...` does not recurse into `bcr/test_module`
 
 If the repo gains BCR metadata files or presubmit config, treat them like first-class source:
 
