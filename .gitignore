@@ -2,3 +2,4 @@
 bazel-*
 .claude/
 .agents/
+bcr/test_module/MODULE.bazel.lock
