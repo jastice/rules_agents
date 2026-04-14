@@ -8,45 +8,34 @@ Follow this guide to install rules_agents into this Bazel repo:
 https://raw.githubusercontent.com/jastice/rules_agents/refs/heads/main/skills/rules_agents/references/quickstart.md
 ```
 
-## About
+## What it does
 
-`rules_agents` lets a repository declare a local coding-agent environment in Bazel and
-launch it with one command.
-
-Basic features:
-
-- Configure an agent profile with a set of skills.
-- Skills may be resolved from a registry. Default registries include this repo's `rules_agents` skill plus the official OpenAI and Anthropic catalogs.
-- Registry archive pins can be refreshed with `@rules_agents//tools:update_registries`.
-- Run an agent with a profile as Bazel target. Multiple agents may share the same skill profile.
-
-The user experience is simple:
+`rules_agents` gives every developer on a repo the same coding-agent
+environment — same skills, same configuration — launched with one command:
 
 ```bash
 bazel run //agent:dev
 ```
 
-That command will:
+You declare skills and profiles once in Bazel. The repo owns the setup.
+Developers just run the target.
 
-1. choose a supported agent client: `codex` or `claude_code`
-2. build the repo's declared profile artifact
-3. set up the selected runner's repo-local state (e.g. in `.agents` / `.claude`)
-4. validate required credential environment variables
-5. launch the selected agent from the repository root
+## Why
 
-That's all. This is not a general AI framework, global config manager, or
-agent installer. It is a repo-owned launcher and skill installer.
+Coding agents are useful, but setting them up is manual work:
 
-## Why it exists
+- Each agent has its own skill format and install location
+- Skills need to be copied or wired in by hand, per agent, per repo
+- Keeping skills up to date across repos and agents is a chore nobody signs up for
+- New team members have to reverse-engineer the setup or ask around
 
-Repositories already own their build and test toolchains. This project aims to let
-them own local coding-agent setup the same way:
+`rules_agents` solves this the same way Bazel solves build toolchains:
+declare what you want, let the tool handle the rest.
 
-- the repo chooses the agent
-- the repo declares reusable skills and keeps them up to date
-- Bazel turns that declaration into a reproducible local setup
-
-That keeps agent setup repo-scoped, shareable, and boring in the right way.
+- **Declare once, run anywhere**: one profile works across Codex and Claude Code — no per-agent wiring
+- **Reproducible**: skills and profiles are versioned with the repo in BUILD files
+- **Always current**: remote skills pull from registries; update pins when you're ready
+- **Zero manual setup**: no hand-editing dotfiles, no tribal knowledge, no config drift
 
 ## This version includes:
 
