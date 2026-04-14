@@ -63,7 +63,6 @@ skill_deps.registries()
 skill_deps.remote(
     name = "rules_agents_skills",
     url = "file://${repo_skills_archive}",
-    strip_prefix = "rules_agents-main",
     skill_path_prefix = "skills",
 )
 use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")

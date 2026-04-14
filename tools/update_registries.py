@@ -82,14 +82,13 @@ def resolve_latest_sha(repo_url: str, branch: str) -> str:
     return sha
 
 
-def github_archive_fields(repo_url: str, revision: str) -> tuple[str, str]:
+def github_archive_url(repo_url: str, revision: str) -> str:
     normalized = repo_url.rstrip("/")
     if not normalized.startswith("https://github.com/"):
         raise RuntimeError(
             f"registry repo_url must be a GitHub repository URL for automatic archive pinning: {repo_url}"
         )
-    repo_name = normalized.rsplit("/", 1)[-1]
-    return f"{normalized}/archive/{revision}.tar.gz", f"{repo_name}-{revision}"
+    return f"{normalized}/archive/{revision}.tar.gz"
 
 
 def update_catalog(payload: dict, selected_ids: set[str]) -> tuple[dict, list[str]]:
@@ -109,13 +108,13 @@ def update_catalog(payload: dict, selected_ids: set[str]) -> tuple[dict, list[st
             continue
 
         revision = resolve_latest_sha(entry["repo_url"], entry.get("default_branch", "main"))
-        archive_url, strip_prefix = github_archive_fields(entry["repo_url"], revision)
-        changed = (
-            entry.get("archive_url") != archive_url or
-            entry.get("strip_prefix", "") != strip_prefix
-        )
+        # Keep strip_prefix untouched when it is explicitly present. Most GitHub-style
+        # archives no longer need it because rules_agents infers wrapper directories
+        # during extraction, but a repository can still opt into a manual override for
+        # unusual layouts.
+        archive_url = github_archive_url(entry["repo_url"], revision)
+        changed = entry.get("archive_url") != archive_url
         entry["archive_url"] = archive_url
-        entry["strip_prefix"] = strip_prefix
         updates.append(
             "%s: %s%s" % (
                 registry_id,

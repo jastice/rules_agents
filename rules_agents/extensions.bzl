@@ -19,6 +19,7 @@ _REGISTRIES_TAG = tag_class(
 _GITHUB_TREE_LINK_FORMAT = "github_tree"
 _REGISTRY_INDEX_REPO = "rules_agents_registry_index"
 _REGISTRY_MANIFEST_VERSION = 1
+_REMOTE_ARCHIVE_STAGE_DIR = "__archive__"
 
 
 def _target_name_for_skill(repo_name, skill_root):
@@ -85,6 +86,64 @@ def _build_file_path(package_dir, build_file_name):
     return package_dir + "/" + build_file_name
 
 
+def _path_relative_to_root(path, root):
+    if not root:
+        return path or "."
+    if path == root:
+        return "."
+    prefix = root + "/"
+    if not path.startswith(prefix):
+        fail("path %r is not under root %r" % (path, root))
+    return path[len(prefix):]
+
+
+def _join_logical_roots(prefix, suffix):
+    normalized_prefix = "" if prefix in ("", ".") else prefix
+    normalized_suffix = "" if suffix in ("", ".") else suffix
+    joined = _join_relpath(normalized_prefix, normalized_suffix)
+    return joined or "."
+
+
+def _strip_search_root_prefix(path, search_root):
+    if search_root == ".":
+        if path.startswith("./"):
+            return path[2:]
+        return path
+
+    prefix = search_root + "/"
+    if not path.startswith(prefix):
+        fail("path %r is not under search root %r" % (path, search_root))
+    return path[len(prefix):]
+
+
+def _find_paths(repo_ctx, root, args, failure_message):
+    search_root = _search_root_for_prefix(root)
+    result = repo_ctx.execute(["/usr/bin/find", search_root] + args)
+    if result.return_code != 0:
+        fail("%s: %s" % (failure_message, result.stderr))
+
+    return [
+        _strip_search_root_prefix(path, search_root)
+        for path in sorted([line for line in result.stdout.splitlines() if line])
+    ]
+
+
+def _archive_url_uses_host_wrapper(url):
+    return url.startswith("https://github.com/") and "/archive/" in url and url.endswith(".tar.gz")
+
+
+def _list_direct_children(repo_ctx, root, directories_only = False):
+    args = ["-mindepth", "1", "-maxdepth", "1"]
+    if directories_only:
+        args.extend(["-type", "d"])
+    return _find_paths(
+        repo_ctx,
+        root,
+        args,
+        "failed to inspect extracted archive layout",
+    )
+
+
 def _build_file_name_for_package(repo_ctx, package_dir):
     if repo_ctx.path(_build_file_path(package_dir, "BUILD")).exists:
         return "BUILD"
@@ -104,21 +163,18 @@ def _package_dir_for_skill_root(skill_root, skill_path_prefix = ""):
 
 
 def _skill_root_relative_to_package(skill_root, package_dir):
-    if not package_dir:
-        return skill_root
-    if skill_root == package_dir:
-        return "."
-    return skill_root[len(package_dir) + 1:]
+    return _path_relative_to_root(skill_root, package_dir)
 
 
 def _discover_skill_roots(repo_ctx, skill_path_prefix = ""):
-    search_root = _search_root_for_prefix(skill_path_prefix)
-    result = repo_ctx.execute(["/usr/bin/find", search_root, "-type", "f", "-name", "SKILL.md"])
-    if result.return_code != 0:
-        fail("failed to scan remote skill archive: %s" % result.stderr)
-
     discovered = []
-    for path in sorted([line for line in result.stdout.splitlines() if line]):
+    for path in _find_paths(
+        repo_ctx,
+        skill_path_prefix,
+        ["-type", "f", "-name", "SKILL.md"],
+        "failed to scan remote skill archive",
+    ):
+        path = "./" + path
         root = _skill_root_from_path(path)
         nested = False
         for existing in discovered:
@@ -128,6 +184,56 @@ def _discover_skill_roots(repo_ctx, skill_path_prefix = ""):
         if not nested:
             discovered.append(root)
     return discovered
+
+
+def _resolve_archive_root(repo_ctx, archive_url, extracted_root, strip_prefix, skill_path_prefix, context_name):
+    # Archive hosts such as GitHub wrap tarballs in a synthetic top-level directory whose
+    # name changes with the selected branch, tag, or commit. We normalize that wrapper
+    # inside a hidden staging tree so callers can keep stable logical paths like
+    # `skill_path_prefix = "skills"` instead of hard-coding host-specific wrapper names.
+    if strip_prefix:
+        resolved_root = _join_relpath(extracted_root, _normalize_relpath(strip_prefix, "strip_prefix"))
+        if not repo_ctx.path(resolved_root).exists:
+            fail("%s strip_prefix %r does not exist in extracted archive" % (context_name, strip_prefix))
+        return resolved_root
+
+    current_root = extracted_root
+    for _ in range(64):
+        if skill_path_prefix and repo_ctx.path(_join_relpath(current_root, skill_path_prefix)).exists:
+            return current_root
+
+        child_dirs = _list_direct_children(repo_ctx, current_root, directories_only = True)
+        if skill_path_prefix:
+            matching_children = []
+            for child_dir in child_dirs:
+                candidate = _join_relpath(_join_relpath(current_root, child_dir), skill_path_prefix)
+                if repo_ctx.path(candidate).exists:
+                    matching_children.append(child_dir)
+            if len(matching_children) > 1:
+                fail(
+                    "%s archive layout is ambiguous without strip_prefix; skill_path_prefix %r exists under multiple top-level directories: %s" % (
+                        context_name,
+                        skill_path_prefix,
+                        ", ".join(sorted(matching_children)),
+                    ),
+                )
+            if len(matching_children) == 1:
+                current_root = _join_relpath(current_root, matching_children[0])
+                continue
+
+        children = _list_direct_children(repo_ctx, current_root)
+        if len(children) == 1 and len(child_dirs) == 1:
+            if not skill_path_prefix:
+                child_root = _join_relpath(current_root, child_dirs[0])
+                if (repo_ctx.path(_join_relpath(child_root, "SKILL.md")).exists and
+                    not _archive_url_uses_host_wrapper(archive_url)):
+                    return current_root
+            current_root = _join_relpath(current_root, child_dirs[0])
+            continue
+
+        return current_root
+
+    fail("%s archive layout exceeded normalization depth while inferring strip_prefix" % context_name)
 
 
 def _agent_skill_target_lines(target_name, skill_root):
@@ -178,32 +284,48 @@ def _build_file_for_package(skill_targets = [], alias_targets = {}):
 
 
 def _remote_skill_repo_impl(repo_ctx):
-    kwargs = {"url": repo_ctx.attr.url}
-    if repo_ctx.attr.strip_prefix:
-        kwargs["stripPrefix"] = repo_ctx.attr.strip_prefix
+    kwargs = {
+        "output": _REMOTE_ARCHIVE_STAGE_DIR,
+        "url": repo_ctx.attr.url,
+    }
     repo_ctx.download_and_extract(**kwargs)
 
     skill_path_prefix = _normalize_relpath(repo_ctx.attr.skill_path_prefix, "skill_path_prefix")
-    if skill_path_prefix and not repo_ctx.path(skill_path_prefix).exists:
+    archive_root = _resolve_archive_root(
+        repo_ctx,
+        archive_url = repo_ctx.attr.url,
+        extracted_root = _REMOTE_ARCHIVE_STAGE_DIR,
+        strip_prefix = repo_ctx.attr.strip_prefix,
+        skill_path_prefix = skill_path_prefix,
+        context_name = "remote skill archive",
+    )
+    search_root = _join_relpath(archive_root, skill_path_prefix)
+    if skill_path_prefix and not repo_ctx.path(search_root).exists:
         fail("skill_path_prefix %r does not exist in extracted archive" % skill_path_prefix)
 
-    skill_roots = sorted(_discover_skill_roots(repo_ctx, skill_path_prefix))
+    # We synthesize BUILD files only inside the hidden staging tree. That keeps public
+    # labels stable while preventing archive-native BUILD files from leaking their own
+    # providers or package boundaries into the generated remote skill repository.
+    skill_roots = sorted(_discover_skill_roots(repo_ctx, search_root))
+    logical_search_root = _path_relative_to_root(search_root, archive_root)
     skill_targets_by_package = {}
     root_aliases = {}
     seen_names = {}
 
     for skill_root in skill_roots:
-        target_name = _target_name_for_skill(repo_ctx.attr.repo_name, skill_root)
+        logical_skill_root = _join_logical_roots(logical_search_root, skill_root)
+        actual_skill_root = _join_relpath(search_root, "" if skill_root == "." else skill_root)
+        target_name = _target_name_for_skill(repo_ctx.attr.repo_name, logical_skill_root)
         if target_name in seen_names:
             fail("duplicate synthesized skill target %r from %r and %r" % (
                 target_name,
                 seen_names[target_name],
-                skill_root,
+                logical_skill_root,
             ))
-        seen_names[target_name] = skill_root
+        seen_names[target_name] = logical_skill_root
 
-        package_dir = _package_dir_for_skill_root(skill_root, skill_path_prefix)
-        package_skill_root = _skill_root_relative_to_package(skill_root, package_dir)
+        package_dir = _package_dir_for_skill_root(actual_skill_root, search_root)
+        package_skill_root = _skill_root_relative_to_package(actual_skill_root, package_dir)
         skill_targets = skill_targets_by_package.setdefault(package_dir, [])
         skill_targets.append({
             "skill_root": package_skill_root,
@@ -468,11 +590,17 @@ def _registry_index_repo_impl(repo_ctx):
             "output": output_dir,
             "url": registry["archive_url"],
         }
-        if registry["strip_prefix"]:
-            kwargs["stripPrefix"] = registry["strip_prefix"]
         repo_ctx.download_and_extract(**kwargs)
 
-        search_prefix = _join_relpath(output_dir, registry["skill_path_prefix"])
+        archive_root = _resolve_archive_root(
+            repo_ctx,
+            archive_url = registry["archive_url"],
+            extracted_root = output_dir,
+            strip_prefix = registry["strip_prefix"],
+            skill_path_prefix = registry["skill_path_prefix"],
+            context_name = "registry %r" % registry_id,
+        )
+        search_prefix = _join_relpath(archive_root, registry["skill_path_prefix"])
         if registry["skill_path_prefix"] and not repo_ctx.path(search_prefix).exists:
             fail("registry %r declared skill_path_prefix %r that does not exist in extracted archive" % (
                 registry_id,
@@ -480,18 +608,21 @@ def _registry_index_repo_impl(repo_ctx):
             ))
 
         skill_roots = _discover_skill_roots(repo_ctx, search_prefix)
+        logical_search_root = _path_relative_to_root(search_prefix, archive_root)
         skills = []
         for skill_root in sorted(skill_roots):
-            target_name = _target_name_for_skill(registry_id, skill_root)
-            frontmatter = _parse_frontmatter(repo_ctx.read(skill_root + "/SKILL.md"))
+            logical_skill_root = _join_logical_roots(logical_search_root, skill_root)
+            actual_skill_root = _join_relpath(search_prefix, "" if skill_root == "." else skill_root)
+            target_name = _target_name_for_skill(registry_id, logical_skill_root)
+            frontmatter = _parse_frontmatter(repo_ctx.read(actual_skill_root + "/SKILL.md"))
             skills.append({
                 "skill_name": target_name,
                 "display_name": frontmatter.get("name", target_name),
                 "description": frontmatter.get("description", ""),
-                "skill_path": skill_root[len(output_dir) + 1:] if skill_root.startswith(output_dir + "/") else skill_root,
+                "skill_path": logical_skill_root,
                 "source_url": _source_url_for_skill(
                     registry,
-                    skill_root[len(output_dir) + 1:] if skill_root.startswith(output_dir + "/") else skill_root,
+                    logical_skill_root,
                 ),
                 "target_label": "@%s//:%s" % (registry_id, target_name),
             })

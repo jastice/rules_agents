@@ -26,7 +26,6 @@ main() {
       "homepage": "https://github.com/openai/skills",
       "repo_url": "https://github.com/openai/skills",
       "archive_url": "https://github.com/openai/skills/archive/refs/heads/main.tar.gz",
-      "strip_prefix": "skills-main",
       "default_branch": "main"
     },
     {
@@ -72,10 +71,19 @@ EOF
 
   grep -q 'openai/skills/archive/0123456789abcdef0123456789abcdef01234567.tar.gz' "$output_path" || \
     fail "stdout output did not pin openai_skills archive_url"
-  grep -q '"strip_prefix": "skills-0123456789abcdef0123456789abcdef01234567"' "$output_path" || \
-    fail "stdout output did not update openai_skills strip_prefix"
   grep -q 'anthropics/skills/archive/89abcdef0123456789abcdef0123456789abcdef.tar.gz' "$output_path" || \
     fail "stdout output did not pin anthropic_skills archive_url"
+
+  python3 - <<PY
+import json
+from pathlib import Path
+
+payload = json.loads(Path("$output_path").read_text())
+registries = {entry["id"]: entry for entry in payload["registries"]}
+
+assert "strip_prefix" not in registries["openai_skills"], "openai_skills unexpectedly gained strip_prefix"
+assert registries["anthropic_skills"]["strip_prefix"] == "skills-main", "anthropic_skills lost explicit strip_prefix"
+PY
 
   (
     export PATH="${fake_bin_dir}:/usr/bin:/bin"

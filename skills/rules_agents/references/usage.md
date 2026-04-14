@@ -42,7 +42,6 @@ skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_
 skill_deps.remote(
     name = "openai_skills",
     url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
-    strip_prefix = "skills-0123456789abcdef",
 )
 
 use_repo(skill_deps, "openai_skills")
@@ -62,6 +61,10 @@ agent_profile(
 `skill_deps.registries(...)` is only for discovery. `skill_deps.remote(...)` is what actually
 makes the external skill repo available to Bazel targets.
 
+For standard GitHub-style tarballs, `rules_agents` auto-detects the archive wrapper directory,
+so `strip_prefix` is usually unnecessary. Keep it only as an override for unusual archive
+layouts.
+
 ## Installing a Skill from a Custom Repo
 
 For a remote archive that is not part of a registry, add it directly:
@@ -72,7 +75,6 @@ skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_
 skill_deps.remote(
     name = "community_skills",
     url = "https://github.com/org/skills/archive/abc123.tar.gz",
-    strip_prefix = "skills-abc123",
 )
 
 use_repo(skill_deps, "community_skills")

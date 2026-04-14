@@ -20,7 +20,6 @@ skill_deps.registries()
 skill_deps.remote(
     name = "rules_agents_skills",
     url = "https://github.com/jastice/rules_agents/archive/refs/heads/main.tar.gz",
-    strip_prefix = "rules_agents-main",
     skill_path_prefix = "skills",
 )
 
@@ -31,6 +30,9 @@ Why both calls:
 
 - `skill_deps.registries()` enables registry discovery commands.
 - `skill_deps.remote(...)` makes this repo's published skill bundle usable in `agent_profile(...)`.
+- `strip_prefix` is not needed for standard GitHub archives; `rules_agents` auto-detects the
+  archive wrapper directory and keeps `skill_path_prefix = "skills"` stable across branch, tag,
+  and commit tarballs.
 
 ## 2. Declare one profile and one runner in `BUILD.bazel`
 

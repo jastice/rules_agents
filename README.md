@@ -134,11 +134,14 @@ skill_deps.registries()
 skill_deps.remote(
     name = "rules_agents_skills",
     url = "https://github.com/jastice/rules_agents/archive/refs/heads/main.tar.gz",
-    strip_prefix = "rules_agents-main",
     skill_path_prefix = "skills",
 )
 use_repo(skill_deps, "rules_agents_registry_index", "rules_agents_skills")
 ```
+
+`rules_agents` auto-detects common single-directory archive wrappers such as GitHub's
+`repo-<revision>/` tarball root, so `strip_prefix` is usually unnecessary. Keep it only
+as an override for unusual archive layouts.
 
 In a BUILD file, start with the `rules_agents` skill:
 
@@ -244,7 +247,6 @@ skill_deps = use_extension("@rules_agents//rules_agents:extensions.bzl", "skill_
 skill_deps.remote(
     name = "openai_skills",
     url = "https://github.com/openai/skills/archive/0123456789abcdef.tar.gz",
-    strip_prefix = "skills-0123456789abcdef",
 )
 
 use_repo(skill_deps, "openai_skills")

@@ -47,7 +47,7 @@
           "strip_prefix": {
             "type": "string",
             "default": "",
-            "description": "Optional extracted archive root to strip before skill discovery."
+            "description": "Optional escape hatch for unusual archive layouts. Common single-directory wrappers are inferred automatically during skill discovery."
           },
           "default_branch": {
             "type": "string",
