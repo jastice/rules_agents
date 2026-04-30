@@ -7,8 +7,9 @@ Current platform scope: Linux and macOS are supported. Windows is not supported 
 
 ## Using the Bundled `rules_agents` Skill
 
-If you only want the maintained skill bundle that ships with this module, no registry or
-remote archive is required. Reference the published skill target directly:
+If you only want the maintained skill bundle that ships with the resolved `@rules_agents`
+module, no registry or remote archive is required. This works whether the module came from
+BCR or from the quickstart source override. Reference the bundled target directly:
 
 ```python
 agent_profile(

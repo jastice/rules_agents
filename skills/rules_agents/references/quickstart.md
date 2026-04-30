@@ -7,11 +7,23 @@ Current platform scope: Linux and macOS are supported. Windows is not supported 
 
 ## 1. Add `rules_agents` to `MODULE.bazel`
 
+Until `rules_agents` is available from the Bazel Central Registry, use a normal Bzlmod
+dependency plus a source override:
+
 ```python
 bazel_dep(name = "rules_agents", version = "0.1.0")
+
+git_override(
+    module_name = "rules_agents",
+    remote = "https://github.com/jastice/rules_agents.git",
+    branch = "main",
+)
 ```
 
-That is enough for released usage from the published module.
+This gives the repo the usual `@rules_agents` module name without requiring BCR publication.
+For a shared repository, replace `branch = "main"` with `commit = "<sha>"` when you choose
+a revision. Once `rules_agents` is published to BCR, remove the `git_override(...)` block
+and keep the versioned `bazel_dep(...)`.
 
 ## 2. Declare one profile and one runner in `BUILD.bazel`
 
@@ -32,17 +44,6 @@ agent_runner(
 
 Use `codex` for repo-local installs under `.agents/skills`.
 Use `claude_code` for repo-local installs under `.claude/skills`.
-
-If you need unreleased repository changes instead of the published module, add this
-development-only override to `MODULE.bazel`:
-
-```python
-git_override(
-    module_name = "rules_agents",
-    remote = "https://github.com/jastice/rules_agents/",
-    branch = "main",
-)
-```
 
 ## 3. Verify before launching
 

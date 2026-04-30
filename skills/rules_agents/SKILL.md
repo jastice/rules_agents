@@ -20,6 +20,7 @@ Use this skill for repo-scoped agent setup in Bazel. Keep the flow narrow:
 ## Working Rules
 
 - Prefer the quickstart path first unless the user already has a profile and just needs a specific usage flow.
+- Do not assume `rules_agents` is published to the Bazel Central Registry. Use the quickstart source override path until a released BCR module is available.
 - Use registry discovery only to browse available skills. A discovered skill becomes usable only after adding the printed `skill_deps.remote(...)` snippet and `use_repo(...)`.
 - Use `agent_skill(...)` for repo-local skills and `skill_deps.remote(...)` for remote archives.
 - Use `agent_profile(...)` to collect skills and required credential env vars.

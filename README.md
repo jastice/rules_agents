@@ -108,11 +108,22 @@ That gives the repo one buildable profile artifact plus one runnable Codex runne
 For the fastest batteries-included setup, install the `rules_agents` skill from this repo and verify with
 one command.
 
-In `MODULE.bazel`, bring in `rules_agents`:
+In `MODULE.bazel`, bring in `rules_agents`. Until the module is available from the Bazel
+Central Registry, keep the source override:
 
 ```python
 bazel_dep(name = "rules_agents", version = "0.1.0")
+
+git_override(
+    module_name = "rules_agents",
+    remote = "https://github.com/jastice/rules_agents.git",
+    branch = "main",
+)
 ```
+
+For a shared repository, replace `branch = "main"` with `commit = "<sha>"` when you choose
+a revision. Once `rules_agents` is published to BCR, remove the `git_override(...)` block
+and keep the versioned `bazel_dep(...)`.
 
 In a BUILD file, start with the bundled `rules_agents` skill target exposed by the module itself:
 
@@ -138,17 +149,6 @@ bazel run //:dev_doctor
 ```
 
 After that, add repo-local skills or discovered remote skills to the same `agent_profile`.
-
-If you need unreleased repository changes instead of the published `0.1.0` module, use
-`git_override(...)` as a development-only path:
-
-```python
-git_override(
-    module_name = "rules_agents",
-    remote = "https://github.com/jastice/rules_agents/",
-    branch = "main",
-)
-```
 
 ## Skill Registry Workflow
 
